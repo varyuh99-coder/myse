@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+<meta name="apple-mobile-web-app-title" content="MYSE"/>
+<meta name="theme-color" content="#f9f6f0"/>
+<title>MYSE · Mew York Stock Exchange</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐾</text></svg>"/>
+<style>*{box-sizing:border-box;margin:0;padding:0;}body{background:#f9f6f0;overflow-x:hidden;-webkit-tap-highlight-color:transparent;}#root{min-height:100vh;min-height:100dvh;}</style>
+<script crossorigin src="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js"></script>
+<script crossorigin src="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script crossorigin src="https://cdn.jsdelivr.net/npm/recharts@2.12.7/umd/Recharts.min.js"></script>
+</head>
+<body>
+<div id="root"><div style="display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;gap:12px"><div style="font-size:36px">🐾</div><div style="font-family:monospace;font-size:11px;color:#9a9088;letter-spacing:3px">LOADING MYSE...</div></div></div>
+<script>
+const { useState, useEffect, useRef, useCallback, useMemo } = React;
+const { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } = Recharts;
+const COMPANIES = [
+  { ticker: "PMA", name: "\u6CDB\u55B5\u822A\u7A7A", state: "Mew York", sector: "\u822A\u7A7A", base: 142, emoji: "\u2708\uFE0F", vol: 0.03, beta: 1 },
+  { ticker: "BBT", name: "\u9AA8\u679C\u79D1\u6280", state: "Silicon Paws", sector: "\u79D1\u6280", base: 386, emoji: "\u{1F9B4}", vol: 0.04, beta: 1.4 },
+  { ticker: "CHP", name: "\u557E\u557E", state: "Silicon Paws", sector: "\u793E\u4EA4", base: 58, emoji: "\u{1F426}", vol: 0.05, beta: 1.5 },
+  { ticker: "KGR", name: "\u888B\u9F20\u5FEB\u9001", state: "Meowchigan", sector: "\u7269\u6D41", base: 91, emoji: "\u{1F998}", vol: 0.035, beta: 1.1 },
+  { ticker: "MAP", name: "\u55B5\u8054\u793E", state: "Pawston", sector: "\u5A92\u4F53", base: 215, emoji: "\u{1F4F0}", vol: 0.02, beta: 0.6 },
+  { ticker: "MHS", name: "\u55B5\u54C8\u987F\u822A\u8FD0", state: "Mew York", sector: "\u822A\u8FD0", base: 168, emoji: "\u{1F6A2}", vol: 0.03, beta: 0.9 },
+  { ticker: "PPR", name: "\u68D5\u6988\u6E7E\u5EA6\u5047", state: "Capurrlina", sector: "\u65C5\u6E38", base: 74, emoji: "\u{1F334}", vol: 0.04, beta: 1.2 },
+  { ticker: "AWK", name: "\u8352\u91CE\u4E4B\u722A", state: "Clawska", sector: "\u6237\u5916", base: 97, emoji: "\u{1F3D4}\uFE0F", vol: 0.035, beta: 1.1 },
+  { ticker: "ARK", name: "\u65B9\u821F\u81EA\u7136", state: "Arizoona", sector: "\u79D1\u7814", base: 131, emoji: "\u{1F52C}", vol: 0.025, beta: 0.7 }
+];
+const FINANCIAL_NEWS = [
+  { t: "PMA", d: 1, i: 0.05, s: "\u6CDB\u55B5\u822A\u7A7A\u5F00\u901APawston-Capurrlina\u76F4\u98DE\u822A\u7EBF\uFF0C\u673A\u7968\u9884\u552E\u4E00\u5C0F\u65F6\u552E\u7F44", heavy: true },
+  { t: "PMA", d: -1, i: -0.04, s: "\u6CDB\u55B5\u822A\u7A7A\u822A\u73ED\u56E0\u673A\u957F\u6253\u76F9\u5EF6\u8BEF\u4E09\u5C0F\u65F6\uFF0C\u65C5\u5BA2\u83B7\u8D60\u9C7C\u7F50\u5934\u81F4\u6B49" },
+  { t: "PMA", d: 1, i: 0.04, s: "\u6CDB\u55B5\u822A\u7A7AQ2\u8D22\u62A5\u8D85\u9884\u671F\uFF0C\u56FD\u9645\u822A\u7EBF\u5BA2\u5EA7\u7387\u8FBE92%" },
+  { t: "PMA", d: -1, i: -0.05, s: "Clawska\u66B4\u98CE\u96EA\u81F4\u6CDB\u55B5\u822A\u7A7A\u5341\u4E8C\u6761\u822A\u7EBF\u53D6\u6D88\uFF0C\u9000\u7968\u91CF\u6FC0\u589E", heavy: true },
+  { t: "PMA", d: 1, i: 0.03, s: "\u6CDB\u55B5\u822A\u7A7A\u5F15\u8FDB\u65B0\u673A\u578B\uFF0C\u71C3\u6CB9\u6210\u672C\u9884\u8BA1\u964D\u4F4E15%" },
+  { t: "BBT", d: 1, i: 0.06, s: "\u9AA8\u679C\u79D1\u6280\u53D1\u5E03MeowOS 4.0\uFF0C\u642D\u8F7DAI\u8BED\u97F3\u52A9\u624B\u300C\u5C0F\u722A\u300D", heavy: true },
+  { t: "BBT", d: -1, i: -0.05, s: "\u9AA8\u679C\u79D1\u6280\u65B0\u54C1\u53D1\u5E03\u4F1A\u7A81\u7136\u5EF6\u671F\uFF0C\u4F9B\u5E94\u94FE\u7591\u51FA\u95EE\u9898", heavy: true },
+  { t: "BBT", d: 1, i: 0.05, s: "\u9AA8\u679C\u79D1\u6280\u4E0E\u65B9\u821F\u81EA\u7136\u8FBE\u6210\u6218\u7565\u5408\u4F5C\uFF0C\u8FDB\u519B\u667A\u80FD\u751F\u6001\u76D1\u6D4B", heavy: true },
+  { t: "BBT", d: -1, i: -0.06, s: "\u9AA8\u679C\u79D1\u6280\u88AB\u66DDMeowOS\u5B58\u5728\u9690\u79C1\u6F0F\u6D1E\uFF0C\u80A1\u4EF7\u627F\u538B", heavy: true },
+  { t: "BBT", d: 1, i: 0.04, s: "\u9AA8\u679C\u79D1\u6280\u5E02\u503C\u7A81\u7834500\u4E07\u20A5\uFF0C\u6210Silicon Paws\u6700\u5927\u4E0A\u5E02\u516C\u53F8" },
+  { t: "CHP", d: 1, i: 0.07, s: "\u557E\u557E\u6708\u6D3B\u7A81\u7834500\u4E07\uFF0C\u77ED\u89C6\u9891\u529F\u80FD\u4E0A\u7EBF\u9996\u5468\u64AD\u653E\u91CF\u7834\u4EBF", heavy: true },
+  { t: "CHP", d: -1, i: -0.06, s: "\u557E\u557E\u5E73\u53F0\u5927\u89C4\u6A21\u5B95\u673A\u56DB\u5C0F\u65F6\uFF0CCEO\u53D1\u6587\u81F4\u6B49", heavy: true },
+  { t: "CHP", d: 1, i: 0.04, s: "\u557E\u557E\u63A8\u51FA\u521B\u4F5C\u8005\u5206\u6210\u8BA1\u5212\uFF0C\u5934\u90E8\u535A\u4E3B\u7EB7\u7EB7\u5165\u9A7B" },
+  { t: "CHP", d: -1, i: -0.05, s: "\u7ADE\u54C1\u300C\u6C6A\u6C6AWoofWoof\u300D\u4E0A\u7EBF\u540C\u7C7B\u529F\u80FD\uFF0C\u557E\u557E\u9762\u4E34\u7528\u6237\u5206\u6D41", heavy: true },
+  { t: "CHP", d: 1, i: 0.05, s: "\u557E\u557E\u83B7Pawston\u5E74\u5EA6\u6700\u4F73App\u5927\u5956\uFF0C\u54C1\u724C\u4EF7\u503C\u98D9\u5347", heavy: true },
+  { t: "KGR", d: 1, i: 0.05, s: "\u888B\u9F20\u5FEB\u9001\u63A8\u51FA\u300C\u95EA\u7535\u9001\u300D\uFF0C30\u5206\u949F\u5FC5\u8FBE\u8986\u76D6\u4E09\u5DDE\u6838\u5FC3\u533A", heavy: true },
+  { t: "KGR", d: -1, i: -0.06, s: "\u888B\u9F20\u5FEB\u9001\u9A91\u624B\u96C6\u4F53\u7F62\u5DE5\uFF0C\u8981\u6C42\u63D0\u9AD8\u6076\u52A3\u5929\u6C14\u914D\u9001\u8865\u8D34", heavy: true },
+  { t: "KGR", d: 1, i: 0.04, s: "\u888B\u9F20\u5FEB\u9001\u4E0E\u68D5\u6988\u6E7E\u5EA6\u5047\u6751\u7B7E\u72EC\u5BB6\u914D\u9001\u534F\u8BAE" },
+  { t: "KGR", d: -1, i: -0.03, s: "\u66B4\u96E8\u5BFC\u81F4Meowchigan\u591A\u5730\u9053\u8DEF\u4E2D\u65AD\uFF0C\u888B\u9F20\u5FEB\u9001\u65F6\u6548\u53D7\u5F71\u54CD" },
+  { t: "KGR", d: 1, i: 0.03, s: "\u888B\u9F20\u5FEB\u9001\u5F00\u901A\u8DE8\u6D77\u914D\u9001\u8BD5\u70B9\uFF0CMew York\u81F3Pawston\u6B21\u65E5\u8FBE" },
+  { t: "MAP", d: 1, i: 0.03, s: "\u55B5\u8054\u793E\u72EC\u5BB6\u6DF1\u5EA6\u8C03\u67E5\u5F15\u53D1\u5168\u56FD\u5173\u6CE8\uFF0C\u4ED8\u8D39\u8BA2\u9605\u91CF\u5355\u5468\u589E\u957F30%" },
+  { t: "MAP", d: -1, i: -0.02, s: "\u55B5\u8054\u793E\u8BB0\u8005\u5728Clawska\u8352\u91CE\u91C7\u8BBF\u65F6\u8FF7\u8DEF\uFF0C\u4E09\u5C0F\u65F6\u540E\u88AB\u641C\u6551\u72AC\u627E\u5230" },
+  { t: "MAP", d: 1, i: 0.04, s: "\u55B5\u8054\u793E\u63A8\u51FA\u4ED8\u8D39\u4E13\u680F\u300C\u6DF1\u5EA6\u55B5\u300D\uFF0C\u9996\u6708\u8425\u6536\u8D85\u9884\u671F" },
+  { t: "MAP", d: -1, i: -0.03, s: "\u81EA\u5A92\u4F53\u51B2\u51FB\u4F20\u7EDF\u901A\u8BAF\u793E\uFF0C\u55B5\u8054\u793E\u5E7F\u544A\u6536\u5165\u8FDE\u7EED\u4E24\u5B63\u4E0B\u6ED1" },
+  { t: "MHS", d: 1, i: 0.05, s: "\u55B5\u54C8\u987F\u822A\u8FD0\u62FF\u4E0BMeowchigan-Mew York\u72EC\u5BB6\u822A\u8FD0\u5408\u540C", heavy: true },
+  { t: "MHS", d: -1, i: -0.05, s: "Mew York\u6E2F\u53E3\u5927\u96FE\u5C01\u822A\u4E09\u65E5\uFF0C\u55B5\u54C8\u987F\u822A\u8FD0\u591A\u8258\u8D27\u8F6E\u6EDE\u7559", heavy: true },
+  { t: "MHS", d: 1, i: 0.04, s: "\u56FD\u9645\u8D38\u6613\u6301\u7EED\u56DE\u6696\uFF0C\u55B5\u54C8\u987F\u822A\u8FD0\u8FD0\u529B\u6EE1\u8F7D\u7387\u8FBE96%" },
+  { t: "MHS", d: -1, i: -0.04, s: "\u6D77\u5CE1\u901A\u884C\u8D39\u4E0A\u8C0320%\uFF0C\u55B5\u54C8\u987F\u822A\u8FD0\u8FD0\u8425\u6210\u672C\u6500\u5347" },
+  { t: "PPR", d: 1, i: 0.06, s: "\u68D5\u6988\u6E7E\u5EA6\u5047\u6751\u5165\u9009\u300C\u55B5\u56FD\u5341\u5927\u5FC5\u53BB\u76EE\u7684\u5730\u300D\uFF0C\u6691\u671F\u9884\u8BA2\u91CF\u66B4\u589E", heavy: true },
+  { t: "PPR", d: -1, i: -0.05, s: "Capurrlina\u6CBF\u6D77\u906D\u53F0\u98CE\u300C\u5927\u732B\u722A\u300D\u88AD\u51FB\uFF0C\u68D5\u6988\u6E7E\u6682\u65F6\u5173\u95ED", heavy: true },
+  { t: "PPR", d: 1, i: 0.05, s: "\u68D5\u6988\u6E7E\u63A8\u51FA\u300C\u94F6\u5589\u957F\u5C3E\u5C71\u96C0\u89C2\u9E1F\u5B63\u300D\u5957\u9910\uFF0C\u4E00\u7ECF\u4E0A\u7EBF\u5373\u552E\u7F44", heavy: true },
+  { t: "PPR", d: -1, i: -0.03, s: "\u6E38\u5BA2\u6295\u8BC9\u68D5\u6988\u6E7E\u6C99\u6EE9\u732B\u6BDB\u592A\u591A\uFF0C\u5EA6\u5047\u6751\u8868\u793A\u8FD9\u662F\u7279\u8272\u4E0D\u662Fbug" },
+  { t: "AWK", d: 1, i: 0.05, s: "\u8352\u91CE\u4E4B\u722A\u65B0\u6B3E\u6781\u5730\u51B2\u950B\u8863\u83B7Clawska\u63A2\u9669\u534F\u4F1A\u5E74\u5EA6\u63A8\u8350", heavy: true },
+  { t: "AWK", d: -1, i: -0.04, s: "\u8352\u91CE\u4E4B\u722A\u4EE3\u8A00\u4EBA\u76F4\u64AD\u65F6\u7A7F\u7ADE\u54C1\u5916\u5957\u88AB\u62CD\uFF0C\u54C1\u724C\u7D27\u6025\u58F0\u660E" },
+  { t: "AWK", d: 1, i: 0.04, s: "\u6237\u5916\u70ED\u6F6E\u6301\u7EED\uFF0C\u8352\u91CE\u4E4B\u722AQ3\u9500\u552E\u989D\u540C\u6BD4\u5927\u589E40%" },
+  { t: "AWK", d: -1, i: -0.05, s: "\u8352\u91CE\u4E4B\u722A\u53EC\u56DE\u4E00\u6279\u6B21\u767B\u5C71\u9774\uFF0C\u978B\u5E95\u8131\u80F6\u9690\u60A3", heavy: true },
+  { t: "ARK", d: 1, i: 0.06, s: "\u65B9\u821F\u81EA\u7136\u5728Arizoona\u96EA\u5C71\u53D1\u73B0\u7591\u4F3C\u65E7\u6587\u660E\u65F6\u671F\u9057\u8FF9", heavy: true },
+  { t: "ARK", d: -1, i: -0.03, s: "\u65B9\u821F\u81EA\u7136\u7814\u7A76\u7ECF\u8D39\u62E8\u6B3E\u88ABPawston\u5EF6\u540E\u5BA1\u6279\uFF0C\u73B0\u91D1\u6D41\u627F\u538B" },
+  { t: "ARK", d: 1, i: 0.05, s: "\u65B9\u821F\u81EA\u7136\u7EAA\u5F55\u7247\u300A\u865A\u65E0\u4E4B\u4E0B\u300B\u83B7\u56FD\u9645\u7EAA\u5F55\u7247\u8282\u6700\u4F73\u63D0\u540D", heavy: true },
+  { t: "ARK", d: -1, i: -0.04, s: "\u65B9\u821F\u81EA\u7136\u5B9E\u9A8C\u5BA4\u53D1\u751F\u5C0F\u578B\u4E8B\u6545\uFF0C\u4E24\u540D\u7814\u7A76\u5458\u88AB\u4ED3\u9F20\u54AC\u4F24" },
+  { t: "ARK", d: 1, i: 0.03, s: "\u65B9\u821F\u81EA\u7136\u786E\u8BA4Arizoona\u96EA\u5C71\u94F6\u5589\u957F\u5C3E\u5C71\u96C0\u79CD\u7FA4\u6570\u91CF\u521B\u65B0\u9AD8" },
+  { t: "ALL", d: 1, i: 0.03, s: "\u9CB8\u9C7C\u5148\u751F\u4ECA\u6668\u5728Mew York\u6D77\u57DF\u6B4C\u5531\uFF0C\u5404\u754C\u89E3\u8BFB\u4E3A\u79EF\u6781\u4FE1\u53F7" },
+  { t: "ALL", d: -1, i: -0.03, s: "\u4E03\u5DDE\u8054\u5408\u7A0E\u6539\u65B9\u6848\u5F15\u53D1\u4E89\u8BAE\uFF0C\u5E02\u573A\u89C2\u671B\u60C5\u7EEA\u6D53\u539A" },
+  { t: "ALL", d: 1, i: 0.02, s: "\u8054\u90A6\u50A8\u5907\u94F6\u884C\u5BA3\u5E03\u4E0B\u8C03\u57FA\u51C6\u5229\u738725\u4E2A\u57FA\u70B9\uFF0C\u6D41\u52A8\u6027\u5BBD\u677E" },
+  { t: "ALL", d: -1, i: -0.02, s: "\u8054\u90A6\u50A8\u5907\u94F6\u884C\u5BA3\u5E03\u4E0A\u8C03\u57FA\u51C6\u5229\u738725\u4E2A\u57FA\u70B9\uFF0C\u8D44\u91D1\u9762\u6536\u7D27" },
+  { t: "ALL", d: 1, i: 0.04, s: "\u5EFA\u56FD\u7EAA\u5FF5\u65E5\u4E34\u8FD1\uFF0C\u6D88\u8D39\u677F\u5757\u6709\u671B\u8FCE\u6765\u65FA\u5B63\u884C\u60C5" },
+  { t: "ALL", d: -1, i: -0.04, s: "\u4E1C\u897F\u5927\u9646\u6D77\u5CE1\u7A81\u53D1\u6D53\u96FE\uFF0C\u8DE8\u6D0B\u8D38\u6613\u5168\u7EBF\u5EF6\u8FDF" },
+  { t: "ALL", d: 0, i: 0, s: "\u9CB8\u9C7C\u5148\u751F\u4ECA\u65E5\u5E26\u85AA\u4F11\u5047\uFF0C\u5E02\u573A\u98CE\u5E73\u6D6A\u9759" },
+  { t: "ALL", d: 0, i: 0, s: "Capurrlina\u6C99\u6EE9\u4EBA\u6D41\u91CF\u4E0E\u6628\u65E5\u6301\u5E73\uFF0C\u5EA6\u5047\u7ECF\u6D4E\u5E73\u7A33\u8FD0\u884C" },
+  { t: "ALL", d: 1, i: 0.02, s: "Pawston\u53D1\u5E03\u7ECF\u6D4E\u84DD\u76AE\u4E66\uFF1A\u55B5\u56FDGDP\u8FDE\u7EED\u4E09\u5B63\u6B63\u589E\u957F" },
+  { t: "ALL", d: -1, i: -0.03, s: "Meowchigan\u4E0ECapurrlina\u8FB9\u5883\u8D38\u6613\u6469\u64E6\u5347\u7EA7\uFF0C\u5173\u7A0E\u58C1\u5792\u9690\u73B0" },
+  { t: "ALL", d: 0, i: 0, s: "Silicon Paws\u521B\u4E1A\u5927\u8D5B\uFF1A\u4E00\u53EA\u67EF\u57FA\u7528AI\u7ED9\u4E3B\u4EBA\u5199\u8F9E\u804C\u4FE1\uFF0C\u83B7\u8BC4\u59D4\u6EE1\u5206" },
+  { t: "ALL", d: 1, i: 0.03, s: "\u5916\u8D44\u673A\u6784\u770B\u597D\u55B5\u56FD\u5E02\u573A\u524D\u666F\uFF0CPAW 500\u6709\u671B\u7A81\u7834\u65B0\u9AD8" }
+];
+const NOISE_NEWS = [
+  "Capurrlina\u7F51\u7EA2\u732B\u300C\u6BDB\u7403\u7403\u300D\u76F4\u64AD\u5403\u9C7C\u7FFB\u8F66\uFF0C\u7C89\u4E1D\u6570\u53CD\u589E50\u4E07",
+  "Pawston\u5E02\u6C11\u6295\u7968\uFF1A\u6700\u53D7\u6B22\u8FCE\u5348\u7761\u5730\u70B9\u63ED\u6653\uFF0C\u7B2C\u4E00\u540D\u7ADF\u662F\u56FD\u4F1A\u53F0\u9636",
+  "\u732B\u8584\u8377\u672C\u5468\u96F6\u552E\u4EF7\u5FAE\u6DA8\uFF0CMeowchigan\u5E02\u6C11\u8868\u793A\u5B8C\u5168\u6CA1\u6709\u5F71\u54CD\u65E5\u5E38",
+  "Mew York\u5730\u94C1B\u7EBF\u53D1\u73B0\u4E00\u53EA\u8FF7\u8DEF\u7684\u67EF\u57FA\uFF0C\u5DF2\u88AB\u597D\u5FC3\u4E58\u5BA2\u6536\u517B",
+  "Arizoona\u5929\u6587\u53F0\u6DF1\u591C\u89C2\u6D4B\u5230\u7591\u4F3C\u6D41\u661F\uFF0C\u4E09\u540D\u7814\u7A76\u5458\u8BB8\u4E86\u540C\u4E00\u4E2A\u613F\u671B",
+  "\u4ECA\u65E5\u5929\u6C14\u9884\u62A5\uFF1ACapurrlina 32\xB0C\uFF0C\u5B98\u65B9\u8EBA\u5E73\u6307\u6570\u4E94\u9897\u661F",
+  "Silicon Paws\u7A0B\u5E8F\u5458\u732B\u5E73\u5747\u65E5\u776118\u5C0F\u65F6\uFF0CHR\u8868\u793A\u5C5E\u4E8E\u6B63\u5E38\u4F5C\u606F",
+  "Clawska\u63A2\u9669\u5BB6\u5F92\u6B65\u6A2A\u7A7F\u5317\u90E8\u51B0\u5DDD\uFF0C\u63A5\u53D7\u91C7\u8BBF\u65F6\u8868\u793A\u300C\u722A\u5B50\u6709\u70B9\u51B7\u300D",
+  "Meowchigan\u5DE5\u5382\u533A\u732B\u7CAE\u4EA7\u91CF\u521B\u5B63\u5EA6\u65B0\u9AD8\uFF0C\u5382\u957F\u79F0\u300C\u9C7C\u5473\u66F4\u6D53\u4E86\u300D",
+  "\u9CB8\u9C7C\u5148\u751F\u88AB\u62CD\u5230\u5728\u6D77\u57DF\u7FFB\u809A\u76AE\u6652\u592A\u9633\uFF0C\u6D77\u6D0B\u4E13\u5BB6\u79F0\u662F\u653E\u677E\u8868\u73B0",
+  "Pawston\u7B2C\u4E09\u5C4A\u5168\u56FD\u6253\u547C\u565C\u5927\u8D5B\u843D\u5E55\uFF0C\u536B\u5195\u51A0\u519B\u4EE587\u5206\u8D1D\u593A\u51A0",
+  "Mew York\u5496\u5561\u534F\u4F1A\u5E74\u5EA6\u62A5\u544A\uFF1A\u732B\u5747\u5496\u5561\u6D88\u8D39\u91CF\u8FDE\u7EED\u4E94\u5E74\u4E0A\u6DA8",
+  "\u4E00\u53EA\u6A58\u732B\u5728Capurrlina\u6D77\u6EE9\u6361\u5230\u4E00\u679A\u53E4\u5E01\uFF0C\u7ECF\u9274\u5B9A\u4E3A\u65E7\u6587\u660E\u9057\u7269",
+  "Silicon Paws\u5E74\u5EA6\u9ED1\u5BA2\u9A6C\u62C9\u677E\uFF1A\u83B7\u80DC\u56E2\u961F\u5F00\u53D1\u4E86AI\u81EA\u52A8\u9017\u732B\u68D2APP",
+  "Arizoona\u56FD\u5BB6\u516C\u56ED\u8FCE\u6765\u94F6\u5589\u957F\u5C3E\u5C71\u96C0\u7E41\u6B96\u5B63\uFF0C\u7BA1\u7406\u5C40\u63D0\u9192\u6E38\u5BA2\u4FDD\u6301\u5B89\u9759",
+  "Pawston\u56FD\u4F1A\u901A\u8FC7\u300A\u5348\u4F11\u4FDD\u969C\u6CD5\u300B\u4FEE\u6B63\u6848\uFF0C\u5348\u7761\u65F6\u95F4\u5EF6\u957F\u81F3\u4E24\u5C0F\u65F6",
+  "Mew York\u6E2F\u53E3\u4E00\u96C6\u88C5\u7BB1\u610F\u5916\u6253\u5F00\uFF0C\u91CC\u9762\u88C5\u6EE1\u4E86\u6BDB\u7EBF\u7403\uFF0C\u6765\u6E90\u6210\u8C1C",
+  "Capurrlina\u5EA6\u5047\u6751\u63A8\u51FA\u300C\u4EC0\u4E48\u90FD\u4E0D\u505A\u300D\u5957\u9910\uFF0C\u6807\u4EF7\u20A5999\uFF0C\u5DF2\u552E\u7F44",
+  "\u5168\u56FD\u6700\u53D7\u6B22\u8FCE\u5BA0\u7269\u540D\u5B57\u6392\u884C\u699C\u51FA\u7089\uFF0C\u300C\u5C0F\u9C7C\u5E72\u300D\u8749\u8054\u699C\u9996",
+  "\u67D0\u533F\u540D\u827A\u672F\u5BB6\u5728Mew York\u7528\u732B\u722A\u5370\u4F5C\u753B\uFF0C\u5355\u5E45\u4F30\u4EF7\u20A512,000",
+  "Clawska\u8FB9\u5883\u5C0F\u9547\u4E3E\u529E\u5E74\u5EA6\u9493\u9C7C\u6BD4\u8D5B\uFF0C\u51A0\u519B\u9493\u4E0A\u6765\u4E00\u53EA\u9774\u5B50",
+  "Meowchigan\u9000\u4F11\u5DE5\u4EBA\u6536\u85CF\u4E863000\u4E2A\u732B\u94C3\u94DB\uFF0C\u7533\u8BF7\u5409\u5C3C\u65AF\u7EAA\u5F55",
+  "Arizoona\u5C71\u533A\u53D1\u73B0\u5F62\u72B6\u9177\u4F3C\u732B\u5934\u7684\u53E4\u6811\uFF0C\u5DF2\u6210\u7F51\u7EA2\u6253\u5361\u70B9",
+  "Pawston\u52A8\u7269\u56ED\u65B0\u751F\u5C0F\u718A\u732B\u53D6\u540D\u6295\u7968\u4E2D\uFF0C\u300C\u7CEF\u7C73\u56E2\u5B50\u300D\u6682\u65F6\u9886\u5148",
+  "Mew York\u7F8E\u98DF\u8282\u672C\u5468\u5F00\u5E55\uFF0C\u4ECA\u5E74\u4E3B\u9898\u662F\u300C\u4E00\u767E\u79CD\u9C7C\u7684\u505A\u6CD5\u300D",
+  "\u8054\u90A6\u6C14\u8C61\u5C40\u9884\u62A5\uFF1A\u672C\u5468\u672B\u4E03\u5DDE\u5929\u6C14\u6674\u597D\uFF0C\u9002\u5408\u6237\u5916\u6D3B\u52A8"
+];
+const FUTURES = [
+  { ticker: "PIDX", name: "PAW\u6307\u6570", emoji: "\u{1F43E}", base: 1e3, vol: 0.04 },
+  { ticker: "TUNA", name: "\u9C7C\u7F50\u5934", emoji: "\u{1F41F}", base: 50, vol: 0.05 },
+  { ticker: "MINT", name: "\u732B\u8584\u8377", emoji: "\u{1F33F}", base: 120, vol: 0.06 },
+  { ticker: "YARN", name: "\u6BDB\u7EBF\u7403", emoji: "\u{1F9F6}", base: 80, vol: 0.045 },
+  { ticker: "WOIL", name: "\u9CB8\u6CB9", emoji: "\u{1F40B}", base: 200, vol: 0.055 },
+  { ticker: "LGLD", name: "\u732B\u7802\u91D1", emoji: "\u2728", base: 500, vol: 0.035 }
+];
+const FUTURES_NEWS = [
+  { t: "TUNA", d: -1, i: -0.06, s: "\u8FDC\u6D0B\u6E14\u8239\u961F\u6EE1\u8F7D\u5F52\u6E2F\uFF0C\u9C7C\u7F50\u5934\u539F\u6599\u4F9B\u5E94\u5145\u8DB3" },
+  { t: "TUNA", d: 1, i: 0.06, s: "Capurrlina\u6D77\u57DF\u53F0\u98CE\u5B63\u63D0\u524D\uFF0C\u6E14\u8239\u5168\u7EBF\u505C\u6E2F\uFF0C\u9C9C\u9C7C\u4F9B\u5E94\u544A\u6025" },
+  { t: "TUNA", d: -1, i: -0.04, s: "Meowchigan\u65B0\u5EFA\u4E09\u5EA7\u9C7C\u7F50\u5934\u52A0\u5DE5\u5382\uFF0C\u4EA7\u80FD\u7FFB\u500D" },
+  { t: "TUNA", d: 1, i: 0.05, s: "\u9CB8\u9C7C\u5148\u751F\u8BEF\u95EF\u6E14\u573A\uFF0C\u6E14\u8239\u96C6\u4F53\u907F\u8BA9\uFF0C\u672C\u5468\u6355\u83B7\u91CF\u9AA4\u964D" },
+  { t: "TUNA", d: -1, i: -0.03, s: "\u65B0\u578B\u6DF1\u6D77\u6355\u635E\u6280\u672F\u63A8\u5E7F\uFF0C\u9C7C\u7F50\u5934\u751F\u4EA7\u6210\u672C\u4E0B\u964D" },
+  { t: "MINT", d: -1, i: -0.07, s: "Arizoona\u732B\u8584\u8377\u5927\u4E30\u6536\uFF0C\u519C\u573A\u4E3B\u8868\u793A\u4ECA\u5E74\u54C1\u8D28\u683C\u5916\u597D" },
+  { t: "MINT", d: 1, i: 0.07, s: "\u866B\u5BB3\u5E2D\u5377\u732B\u8584\u8377\u4E3B\u4EA7\u533A\uFF0C\u51CF\u4EA7\u9884\u671F\u63A8\u9AD8\u4EF7\u683C" },
+  { t: "MINT", d: -1, i: -0.05, s: "Pawston\u516C\u5E03\u732B\u8584\u8377\u6218\u7565\u50A8\u5907\u6570\u636E\uFF0C\u5E93\u5B58\u5145\u8DB3\uFF0C\u4EF7\u683C\u627F\u538B" },
+  { t: "MINT", d: 1, i: 0.06, s: "\u732B\u8584\u8377\u51FA\u53E3\u7981\u4EE4\u4F20\u95FB\u751A\u56A3\u5C18\u4E0A\uFF0C\u5E02\u573A\u6050\u614C\u6027\u4E70\u5165" },
+  { t: "MINT", d: 1, i: 0.04, s: "\u6301\u7EED\u5E72\u65F1\u5A01\u80C1Arizoona\u79CD\u690D\u533A\uFF0C\u732B\u8584\u8377\u51CF\u4EA7\u9884\u8B66" },
+  { t: "YARN", d: -1, i: -0.05, s: "Meowchigan\u6BDB\u7EBF\u5DE5\u5382\u4EA7\u91CF\u521B\u65B0\u9AD8\uFF0C\u6BDB\u7EBF\u7403\u4F9B\u5E94\u5BBD\u677E" },
+  { t: "YARN", d: 1, i: 0.05, s: "\u7F8A\u6BDB\u8FDB\u53E3\u5173\u7A0E\u4E0A\u8C0315%\uFF0C\u6BDB\u7EBF\u7403\u6210\u672C\u6500\u5347" },
+  { t: "YARN", d: -1, i: -0.04, s: "\u81EA\u52A8\u5316\u7EBA\u7EC7\u6280\u672F\u7A81\u7834\uFF0C\u6BDB\u7EBF\u7403\u751F\u4EA7\u6548\u7387\u5927\u5E45\u63D0\u5347" },
+  { t: "YARN", d: 1, i: 0.04, s: "\u51AC\u5B63\u6765\u4E34\uFF0C\u6BDB\u7EBF\u7403\u9700\u6C42\u6FC0\u589E\uFF0C\u5E93\u5B58\u5FEB\u901F\u6D88\u8017" },
+  { t: "WOIL", d: -1, i: -0.06, s: "Silicon Paws\u65B0\u578B\u66FF\u4EE3\u80FD\u6E90\u8BD5\u9A8C\u6210\u529F\uFF0C\u9CB8\u6CB9\u9700\u6C42\u9884\u671F\u4E0B\u964D" },
+  { t: "WOIL", d: 1, i: 0.06, s: "\u4E1C\u897F\u5927\u9646\u6D77\u5CE1\u822A\u8FD0\u4E2D\u65AD\uFF0C\u9CB8\u6CB9\u8FD0\u8F93\u53D7\u963B\uFF0C\u4EF7\u683C\u98D9\u5347" },
+  { t: "WOIL", d: -1, i: -0.04, s: "\u9CB8\u6CB9\u6218\u7565\u50A8\u5907\u91CA\u653E500\u4E07\u6876\uFF0C\u5E02\u573A\u4F9B\u5E94\u538B\u529B\u7F13\u89E3" },
+  { t: "WOIL", d: 1, i: 0.05, s: "Clawska\u6781\u5BD2\u5929\u6C14\u81F4\u4F9B\u6696\u9700\u6C42\u66B4\u589E\uFF0C\u9CB8\u6CB9\u5E93\u5B58\u544A\u6025" },
+  { t: "WOIL", d: 1, i: 0.04, s: "\u4EA7\u6CB9\u533A\u8BBE\u5907\u8001\u5316\u505C\u673A\u7EF4\u4FEE\uFF0C\u9CB8\u6CB9\u77ED\u671F\u4F9B\u7ED9\u6536\u7D27" },
+  { t: "LGLD", d: -1, i: -0.04, s: "\u5168\u7403\u5C40\u52BF\u5E73\u7A33\uFF0C\u907F\u9669\u9700\u6C42\u964D\u6E29\uFF0C\u732B\u7802\u91D1\u4EF7\u683C\u56DE\u843D" },
+  { t: "LGLD", d: 1, i: 0.04, s: "\u4E03\u5DDE\u5916\u4EA4\u5173\u7CFB\u7D27\u5F20\uFF0C\u8D44\u91D1\u6D8C\u5165\u732B\u7802\u91D1\u907F\u9669" },
+  { t: "LGLD", d: -1, i: -0.03, s: "Arizoona\u53D1\u73B0\u65B0\u77FF\u8109\uFF0C\u732B\u7802\u91D1\u4F9B\u5E94\u9884\u671F\u589E\u52A0" },
+  { t: "LGLD", d: 1, i: 0.05, s: "\u8054\u90A6\u50A8\u5907\u94F6\u884C\u964D\u606F\u53E0\u52A0\u901A\u80C0\u9884\u671F\uFF0C\u732B\u7802\u91D1\u53D7\u8FFD\u6367" },
+  { t: "LGLD", d: 1, i: 0.03, s: "\u5730\u7F18\u98CE\u9669\u5347\u6E29\uFF0C\u673A\u6784\u589E\u6301\u732B\u7802\u91D1\u5BF9\u51B2\u5934\u5BF8" },
+  { t: "FALL", d: 1, i: 0.03, s: "\u4E03\u5DDE\u8D38\u6613\u534F\u5B9A\u8C08\u5224\u53D6\u5F97\u8FDB\u5C55\uFF0C\u5927\u5B97\u5546\u54C1\u5E02\u573A\u6574\u4F53\u56DE\u6696" },
+  { t: "FALL", d: -1, i: -0.03, s: "\u5168\u7403\u7ECF\u6D4E\u653E\u7F13\u62C5\u5FE7\u52A0\u5267\uFF0C\u5927\u5B97\u5546\u54C1\u4EF7\u683C\u627F\u538B" },
+  { t: "FALL", d: 0, i: 0, s: "\u5927\u5B97\u5546\u54C1\u5E02\u573A\u4ECA\u65E5\u4EA4\u6295\u6E05\u6DE1\uFF0C\u5404\u54C1\u79CD\u7A84\u5E45\u9707\u8361" },
+  { t: "FALL", d: 1, i: 0.02, s: "\u822A\u8FD0\u6307\u6570\u56DE\u5347\u5E26\u52A8\u5927\u5B97\u7269\u6D41\u6210\u672C\u6539\u5584\uFF0C\u5229\u597D\u6574\u4F53\u5546\u54C1\u4EF7\u683C" },
+  { t: "FALL", d: -1, i: -0.02, s: "Pawston\u6536\u7D27\u5927\u5B97\u5546\u54C1\u6295\u673A\u76D1\u7BA1\uFF0C\u77ED\u7EBF\u8D44\u91D1\u64A4\u79BB" }
+];
+const FUTURES_NOISE = [
+  "Mew York\u671F\u8D27\u4EA4\u6613\u5927\u5385\u7684\u732B\u4ECA\u5929\u53C8\u8DB4\u5728\u4E86\u62A5\u4EF7\u5C4F\u5E55\u4E0A",
+  "\u4E00\u4F4D\u4EA4\u6613\u5458\u58F0\u79F0\u901A\u8FC7\u89C2\u5BDF\u732B\u5C3E\u5DF4\u6447\u6446\u65B9\u5411\u9884\u6D4B\u884C\u60C5\uFF0C\u6B63\u786E\u738750%",
+  "\u671F\u8D27\u4EA4\u6613\u5927\u5385\u5496\u5561\u673A\u518D\u6B21\u6545\u969C\uFF0C\u4EA4\u6613\u5458\u60C5\u7EEA\u53D7\u5230\u8F7B\u5FAE\u5F71\u54CD",
+  "\u6709\u4EBA\u5728\u9CB8\u6CB9\u671F\u8D27\u5408\u7EA6\u4E0A\u53D1\u73B0\u4E00\u4E2A\u732B\u722A\u5370\u6C34\u5370\uFF0C\u5B98\u65B9\u79F0\u662F\u5F69\u86CB",
+  "\u732B\u7802\u91D1\u5B9E\u7269\u4EA4\u5272\u4ED3\u5E93\u672C\u6708\u76D8\u70B9\uFF1A\u4E00\u5207\u6B63\u5E38\uFF0C\u53EA\u5C11\u4E86\u4E00\u4E2A\u94C3\u94DB"
+];
+const INITIAL_CASH = 1e5;
+const LIMIT = 0.1;
+const FEE_NORMAL = 1e-3;
+const NEWS_CD = 4;
+const DRIFT_TODAY = 0.4;
+const DRIFT_MIN = 3;
+const DRIFT_MAX = 5;
+const SUB_COST = 500;
+const SUB_DAYS = 30;
+const GOAL_STOCK = 1e7;
+const UNLOCK_FUT = 2e5;
+const UNLOCK_FUT_DAYS = 100;
+const UNLOCK_CRYPTO = 1e6;
+const UNLOCK_CRYPTO_DAYS = 150;
+const LIQ_THRESHOLD = 0.9;
+const LEVERAGES = [2, 5, 10];
+const MEAN_REVERSION = 0.02;
+const SEESAW_STRENGTH = 0.015;
+const EXTREME_DAYS = 30;
+const C = {
+  bg: "#f9f6f0",
+  card: "#ffffff",
+  cardAlt: "#f5f1ea",
+  accent: "#a07d28",
+  up: "#d03030",
+  upBg: "rgba(208,48,48,0.06)",
+  down: "#1a8f3a",
+  downBg: "rgba(26,143,58,0.06)",
+  text: "#2a2520",
+  textSec: "#9a9088",
+  border: "#e8e0d4",
+  danger: "#c0392b",
+  dangerBg: "rgba(192,57,43,0.08)",
+  futures: "#5a4a8a",
+  futBg: "rgba(90,74,138,0.06)"
+};
+const SAVE_KEY = "myse-v5";
+function fmt(n) {
+  if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(2) + "M";
+  if (Math.abs(n) >= 1e4) return (n / 1e3).toFixed(1) + "K";
+  return n.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function calcPawIndex(pr) {
+  const v = COMPANIES.map((c) => (pr[c.ticker] || c.base) / c.base);
+  return +(v.reduce((a, b) => a + b, 0) / v.length * 1e3).toFixed(2);
+}
+function getExtremeTag(hist, cur) {
+  if (!hist || hist.length < EXTREME_DAYS) return null;
+  const r = hist.slice(-EXTREME_DAYS);
+  const mx = Math.max(...r), mn = Math.min(...r);
+  if (cur >= mx) return "high";
+  if (cur <= mn) return "low";
+  return null;
+}
+function pickFinNews(recent) {
+  const count = 2 + Math.floor(Math.random() * 2);
+  const rt = new Set((recent || []).slice(-(NEWS_CD * 3)).map((n) => n.s));
+  let pool = FINANCIAL_NEWS.filter((n) => !rt.has(n.s));
+  if (pool.length < 6) pool = [...FINANCIAL_NEWS];
+  pool.sort(() => Math.random() - 0.5);
+  const picked = [], used = /* @__PURE__ */ new Set();
+  const ap = pool.filter((n) => n.t === "ALL");
+  if (ap.length && Math.random() > 0.3) picked.push(ap[0]);
+  for (const n of pool) {
+    if (picked.length >= count) break;
+    if (n.t === "ALL" && picked.some((p) => p.t === "ALL")) continue;
+    if (n.t !== "ALL" && used.has(n.t)) continue;
+    if (picked.includes(n)) continue;
+    used.add(n.t);
+    picked.push(n);
+  }
+  return picked;
+}
+function pickNoise(recent) {
+  const c = 1 + Math.floor(Math.random() * 2);
+  const rt = new Set((recent || []).slice(-8).map((n) => n.s));
+  let p = NOISE_NEWS.filter((s) => !rt.has(s));
+  if (p.length < 3) p = [...NOISE_NEWS];
+  p.sort(() => Math.random() - 0.5);
+  return p.slice(0, c).map((s) => ({ t: "NOISE", d: 0, i: 0, s }));
+}
+function pickFutNews(recent) {
+  const count = 1 + Math.floor(Math.random() * 2);
+  const rt = new Set((recent || []).slice(-6).map((n) => n.s));
+  let pool = FUTURES_NEWS.filter((n) => !rt.has(n.s));
+  if (pool.length < 4) pool = [...FUTURES_NEWS];
+  pool.sort(() => Math.random() - 0.5);
+  const picked = [], used = /* @__PURE__ */ new Set();
+  for (const n of pool) {
+    if (picked.length >= count) break;
+    if (n.t === "FALL" && picked.some((p) => p.t === "FALL")) continue;
+    if (n.t !== "FALL" && used.has(n.t)) continue;
+    if (picked.includes(n)) continue;
+    used.add(n.t);
+    picked.push(n);
+  }
+  const fn = FUTURES_NOISE.filter((s) => !rt.has(s));
+  if (fn.length && Math.random() > 0.5) picked.push({ t: "FNOISE", d: 0, i: 0, s: fn[Math.floor(Math.random() * fn.length)] });
+  return picked;
+}
+function calcStockPrices(pc, news, drifts) {
+  const mi = news.filter((n) => n.t === "ALL").reduce((s, n) => s + n.i, 0);
+  const nd = [], pr = {};
+  COMPANIES.forEach((c) => {
+    const prev = pc[c.ticker];
+    let si = 0;
+    news.filter((n) => n.t === c.ticker).forEach((n) => {
+      if (n.heavy) {
+        si += n.i * DRIFT_TODAY;
+        const dur = DRIFT_MIN + Math.floor(Math.random() * (DRIFT_MAX - DRIFT_MIN + 1));
+        nd.push({ ticker: c.ticker, daysLeft: dur, dailyImpact: n.i * (1 - DRIFT_TODAY) / dur });
+      } else si += n.i;
+    });
+    const di = (drifts || []).filter((d) => d.ticker === c.ticker && d.daysLeft > 0).reduce((s, d) => s + d.dailyImpact, 0);
+    const deviation = (prev - c.base) / c.base;
+    const reversion = -deviation * MEAN_REVERSION;
+    const drift = (Math.random() - 0.5) * c.vol * 2;
+    let ch = drift + si + mi * c.beta + di + reversion;
+    ch = Math.max(-LIMIT, Math.min(LIMIT, ch));
+    pr[c.ticker] = Math.max(1, +(prev * (1 + ch)).toFixed(2));
+  });
+  return { prices: pr, newDrifts: nd };
+}
+function calcFutPrices(pc, news, pawIdx) {
+  const mi = news.filter((n) => n.t === "FALL").reduce((s, n) => s + n.i, 0);
+  const pawDev = (pawIdx - 1e3) / 1e3;
+  const pr = {};
+  FUTURES.forEach((f) => {
+    if (f.ticker === "PIDX") {
+      pr["PIDX"] = pawIdx;
+      return;
+    }
+    const prev = pc[f.ticker] || f.base;
+    const impact = news.filter((n) => n.t === f.ticker).reduce((s, n) => s + n.i, 0);
+    const deviation = (prev - f.base) / f.base;
+    const reversion = -deviation * MEAN_REVERSION;
+    const seesaw = f.ticker === "LGLD" ? -pawDev * SEESAW_STRENGTH * 2 : -pawDev * SEESAW_STRENGTH;
+    const drift = (Math.random() - 0.5) * f.vol * 2;
+    let ch = drift + impact + mi + reversion + seesaw;
+    pr[f.ticker] = Math.max(0.01, +(prev * (1 + ch)).toFixed(2));
+  });
+  return pr;
+}
+function posPnL(pos, curPrice) {
+  const r = pos.dir === "long" ? (curPrice - pos.entry) / pos.entry : (pos.entry - curPrice) / pos.entry;
+  const notional = pos.contractSize || pos.margin * pos.lev;
+  return +(notional * r).toFixed(2);
+}
+function isLiquidated(pos, curPrice) {
+  return pos.margin + posPnL(pos, curPrice) <= pos.margin * (1 - LIQ_THRESHOLD);
+}
+function isLimitUp(p, pc) {
+  return pc > 0 && p >= +(pc * (1 + LIMIT)).toFixed(2);
+}
+function isLimitDown(p, pc) {
+  return pc > 0 && p <= +(pc * (1 - LIMIT)).toFixed(2);
+}
+function loadSave() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {
+  }
+  return null;
+}
+function writeSave(data) {
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+  } catch {
+  }
+}
+function clearSave() {
+  try {
+    localStorage.removeItem(SAVE_KEY);
+  } catch {
+  }
+}
+function IdentitySelect({ onSelect }) {
+  const ft = "'Playfair Display',serif", fh = "'Caveat',cursive", f = "'DM Mono',monospace";
+  return /* @__PURE__ */ React.createElement("div", { style: { background: C.bg, minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 20px", fontFamily: f } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 40, marginBottom: 8 } }, "\u{1F43E}"), /* @__PURE__ */ React.createElement("div", { style: { fontFamily: ft, fontSize: 28, fontWeight: 800, color: C.accent, letterSpacing: 2, marginBottom: 2 } }, "MYSE"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 8, color: C.textSec, letterSpacing: 4, textTransform: "uppercase", marginBottom: 32 } }, "Mew York Stock Exchange"), /* @__PURE__ */ React.createElement("div", { style: { fontFamily: fh, fontSize: 20, color: C.text, marginBottom: 24 } }, "\u9009\u62E9\u4F60\u7684\u8EAB\u4EFD"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 14, maxWidth: 320, width: "100%" } }, /* @__PURE__ */ React.createElement("button", { onClick: () => onSelect("normal"), style: { background: C.card, border: "1px solid " + C.border, borderRadius: 14, padding: "20px 18px", cursor: "pointer", textAlign: "left" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 12, marginBottom: 8 } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 28 } }, "\u{1F9D1}\u200D\u{1F4BC}"), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontFamily: ft, fontSize: 16, fontWeight: 600 } }, "\u666E\u901A\u80A1\u6C11"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: C.accent, marginTop: 2 } }, "STANDARD \xB7 0.1% FEE"))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: C.textSec } }, "\u6BCF\u7B14\u4EA4\u6613 0.1% \u624B\u7EED\u8D39\uFF08\u4E70\u5356\u53CC\u5411\uFF09")), /* @__PURE__ */ React.createElement("button", { onClick: () => onSelect("vip"), style: { background: "linear-gradient(135deg,#2a2520,#3d3530)", border: "1px solid rgba(200,180,140,0.3)", borderRadius: 14, padding: "20px 18px", cursor: "pointer", textAlign: "left" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 12, marginBottom: 8 } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 28 } }, "\u{1F4B3}"), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontFamily: ft, fontSize: 16, fontWeight: 600, color: "#e8d5b0" } }, "\u5238\u5546 VIP"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: C.accent, marginTop: 2 } }, "\u767E\u55B5\u957F\u9ED1\u5361 \xB7 ZERO FEE"))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "rgba(200,190,170,0.7)" } }, "\u96F6\u624B\u7EED\u8D39\uFF0C\u8054\u90A6\u50A8\u5907\u94F6\u884C\u9ED1\u5361\u6301\u6709\u8005\u4E13\u5C5E"))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 32, textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: C.textSec } }, "\u521D\u59CB\u8D44\u91D1 \u20A5100,000 \xB7 \u76EE\u6807 \u20A510,000,000")));
+}
+function NewsCard({ n, subscribed, dim, isFutures }) {
+  const isNoise = n.t === "NOISE" || n.t === "FNOISE";
+  const co = COMPANIES.find((c) => c.ticker === n.t);
+  const fu = FUTURES.find((f) => f.ticker === n.t);
+  return /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 10, padding: "12px 14px", marginBottom: 8, border: "1px solid " + C.border, opacity: dim ? 0.55 : 1, borderLeft: "3px solid " + (isFutures ? C.futures : C.border) } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 6 } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 9, color: C.textSec, fontFamily: "'DM Mono',monospace" } }, "Day ", n.day), subscribed && !isNoise && n.t !== "ALL" && n.t !== "FALL" && co && /* @__PURE__ */ React.createElement("span", { style: { fontSize: 9, color: C.accent, fontFamily: "'DM Mono',monospace" } }, "\u{1F4CA} ", n.t, " \xB7 ", co.name), subscribed && !isNoise && n.t === "ALL" && /* @__PURE__ */ React.createElement("span", { style: { fontSize: 9, color: C.accent, fontFamily: "'DM Mono',monospace" } }, "\u{1F4CA} \u5927\u76D8"), isFutures && !isNoise && n.t !== "FALL" && fu && /* @__PURE__ */ React.createElement("span", { style: { fontSize: 9, color: C.futures, fontFamily: "'DM Mono',monospace" } }, "\u{1F4CA} ", fu.emoji, " ", fu.name), isFutures && !isNoise && n.t === "FALL" && /* @__PURE__ */ React.createElement("span", { style: { fontSize: 9, color: C.futures, fontFamily: "'DM Mono',monospace" } }, "\u{1F4CA} \u5927\u5B97")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, lineHeight: 1.7, color: C.text, fontFamily: "'Noto Serif SC',serif" } }, n.s));
+}
+function ResetButton({ onReset }) {
+  const [c, setC] = useState(false);
+  return /* @__PURE__ */ React.createElement("button", { onClick: () => {
+    if (!c) {
+      setC(true);
+      setTimeout(() => setC(false), 3e3);
+    } else {
+      onReset();
+      setC(false);
+    }
+  }, style: { display: "block", margin: "24px auto", padding: "8px 20px", background: "transparent", border: "1px solid " + C.border, borderRadius: 6, color: C.textSec, fontSize: 10, cursor: "pointer", fontFamily: "'DM Mono',monospace", letterSpacing: 2 } }, c ? "\u26A0 \u786E\u8BA4\u91CD\u7F6E\uFF1F\u518D\u70B9\u4E00\u6B21" : "\u91CD\u7F6E\u8D26\u6237");
+}
+function MYSE() {
+  const [loaded, setLoaded] = useState(false);
+  const [identity, setIdentity] = useState(null);
+  const [day, setDay] = useState(1);
+  const [cash, setCash] = useState(INITIAL_CASH);
+  const [holdings, setHoldings] = useState({});
+  const [prices, setPrices] = useState({});
+  const [prevCloses, setPrevCloses] = useState({});
+  const [priceHist, setPriceHist] = useState({});
+  const [todayNews, setTodayNews] = useState([]);
+  const [newsHist, setNewsHist] = useState([]);
+  const [finNewsHist, setFinNewsHist] = useState([]);
+  const [totalTrades, setTotalTrades] = useState(0);
+  const [prevPawIndex, setPrevPawIndex] = useState(1e3);
+  const [activeDrifts, setActiveDrifts] = useState([]);
+  const [assetHist, setAssetHist] = useState([]);
+  const [subscribed, setSubscribed] = useState(false);
+  const [subExpiry, setSubExpiry] = useState(0);
+  const [futUnlocked, setFutUnlocked] = useState(false);
+  const [futPrices, setFutPrices] = useState({});
+  const [futPrevCloses, setFutPrevCloses] = useState({});
+  const [futPriceHist, setFutPriceHist] = useState({});
+  const [futPositions, setFutPositions] = useState([]);
+  const [futTodayNews, setFutTodayNews] = useState([]);
+  const [futNewsHist, setFutNewsHist] = useState([]);
+  const [futDayStart, setFutDayStart] = useState(0);
+  const [tab, setTab] = useState("trade");
+  const [selected, setSelected] = useState(null);
+  const [qty, setQty] = useState("");
+  const [tradeMode, setTradeMode] = useState("buy");
+  const [toast, setToast] = useState(null);
+  const [showNext, setShowNext] = useState(false);
+  const [showSub, setShowSub] = useState(false);
+  const [futNotice, setFutNotice] = useState(false);
+  const [cryptoNotice, setCryptoNotice] = useState(false);
+  const [futSel, setFutSel] = useState(null);
+  const [futDir, setFutDir] = useState("long");
+  const [futLev, setFutLev] = useState(5);
+  const [futAmt, setFutAmt] = useState("");
+  const [addMarginId, setAddMarginId] = useState(null);
+  const [addMarginAmt, setAddMarginAmt] = useState("");
+  const tt = useRef(null);
+  const feeRate = identity === "normal" ? FEE_NORMAL : 0;
+  const isSubActive = subscribed && day <= subExpiry;
+  useEffect(() => {
+    const l = document.createElement("link");
+    l.href = "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=Caveat:wght@400;500;600&family=Noto+Serif+SC:wght@400;600&family=Lora:ital,wght@0,400;0,500;1,400&display=swap";
+    l.rel = "stylesheet";
+    document.head.appendChild(l);
+  }, []);
+  useEffect(() => {
+    const d = loadSave();
+    if (d) {
+      setIdentity(d.identity);
+      setDay(d.day);
+      setCash(d.cash);
+      setHoldings(d.holdings || {});
+      setPrices(d.prices);
+      setPrevCloses(d.prevCloses);
+      setPriceHist(d.priceHist || {});
+      setNewsHist(d.newsHist || []);
+      setFinNewsHist(d.finNewsHist || []);
+      setTodayNews((d.newsHist || []).filter((n) => n.day === d.day));
+      setTotalTrades(d.totalTrades || 0);
+      setPrevPawIndex(d.prevPawIndex || 1e3);
+      setActiveDrifts(d.activeDrifts || []);
+      setAssetHist(d.assetHist || []);
+      setSubscribed(d.subscribed || false);
+      setSubExpiry(d.subExpiry || 0);
+      setFutUnlocked(d.futUnlocked || false);
+      setFutPrices(d.futPrices || {});
+      setFutPrevCloses(d.futPrevCloses || {});
+      setFutPriceHist(d.futPriceHist || {});
+      setFutPositions(d.futPositions || []);
+      setFutNewsHist(d.futNewsHist || []);
+      setFutTodayNews((d.futNewsHist || []).filter((n) => n.day === d.day));
+      setFutDayStart(d.futDayStart || 0);
+    }
+    setLoaded(true);
+  }, []);
+  const save = useCallback((data) => {
+    writeSave(data);
+  }, []);
+  const showToast = (msg, type = "info") => {
+    setToast({ msg, type });
+    if (tt.current) clearTimeout(tt.current);
+    tt.current = setTimeout(() => setToast(null), 2600);
+  };
+  const getAll = () => ({ identity, day, cash, holdings, prices, prevCloses, priceHist, newsHist, finNewsHist, totalTrades, prevPawIndex, activeDrifts, assetHist, subscribed, subExpiry, futUnlocked, futPrices, futPrevCloses, futPriceHist, futPositions, futNewsHist, futDayStart });
+  const startGame = useCallback((id) => {
+    setIdentity(id);
+    const p = {}, pc = {}, ph = {};
+    COMPANIES.forEach((c) => {
+      p[c.ticker] = c.base;
+      pc[c.ticker] = c.base;
+      ph[c.ticker] = [c.base];
+    });
+    const of = [{ t: "ALL", d: 0, i: 0, s: "MYSE\u4ECA\u65E5\u6B63\u5F0F\u5F00\u5E02\uFF01\u4E5D\u5BB6\u4F01\u4E1A\u6302\u724C\u4E0A\u5E02\uFF0C\u8054\u90A6\u50A8\u5907\u94F6\u884C\u884C\u957F\u4EB2\u81EA\u6572\u54CD\u5F00\u5E02\u949F\u3002", day: 1 }];
+    const on = [{ t: "NOISE", d: 0, i: 0, s: "Pawston\u5E02\u4E2D\u5FC3\u5F20\u706F\u7ED3\u5F69\u5E86\u795D\u4EA4\u6613\u6240\u6210\u7ACB", day: 1 }];
+    const ad = [...of, ...on];
+    const fp = {}, fpc = {}, fph = {};
+    FUTURES.forEach((f) => {
+      fp[f.ticker] = f.base;
+      fpc[f.ticker] = f.base;
+      fph[f.ticker] = [f.base];
+    });
+    setPrices(p);
+    setPrevCloses(pc);
+    setPriceHist(ph);
+    setTodayNews(ad);
+    setNewsHist(ad);
+    setFinNewsHist(of);
+    setDay(1);
+    setCash(INITIAL_CASH);
+    setHoldings({});
+    setTotalTrades(0);
+    setPrevPawIndex(1e3);
+    setActiveDrifts([]);
+    setAssetHist([INITIAL_CASH]);
+    setSubscribed(false);
+    setSubExpiry(0);
+    setFutUnlocked(false);
+    setFutPrices(fp);
+    setFutPrevCloses(fpc);
+    setFutPriceHist(fph);
+    setFutPositions([]);
+    setFutNewsHist([]);
+    setFutTodayNews([]);
+    setFutDayStart(0);
+    save({ identity: id, day: 1, cash: INITIAL_CASH, holdings: {}, prices: p, prevCloses: pc, priceHist: ph, newsHist: ad, finNewsHist: of, totalTrades: 0, prevPawIndex: 1e3, activeDrifts: [], assetHist: [INITIAL_CASH], subscribed: false, subExpiry: 0, futUnlocked: false, futPrices: fp, futPrevCloses: fpc, futPriceHist: fph, futPositions: [], futNewsHist: [], futDayStart: 0 });
+  }, [save]);
+  const handleSub = () => {
+    if (cash < SUB_COST) {
+      showToast("\u4F59\u989D\u4E0D\u8DB3", "err");
+      return;
+    }
+    const nc = +(cash - SUB_COST).toFixed(2), exp = day + SUB_DAYS;
+    setCash(nc);
+    setSubscribed(true);
+    setSubExpiry(exp);
+    setShowSub(false);
+    showToast("\u5DF2\u8BA2\u9605\u91D1\u878D\u7248 \xB7 \u81F3\u7B2C" + exp + "\u5929", "info");
+    save({ ...getAll(), cash: nc, subscribed: true, subExpiry: exp });
+  };
+  const nextDay = () => {
+    const nh = {};
+    Object.entries(holdings).forEach(([tk, h]) => {
+      nh[tk] = { ...h, available: h.shares, todayBought: 0 };
+    });
+    const cp = calcPawIndex(prices), nd = day + 1;
+    let ns = subscribed, ne = subExpiry;
+    if (subscribed && nd > subExpiry) {
+      ns = false;
+      ne = 0;
+    }
+    const rf = pickFinNews(finNewsHist), df = rf.map((n) => ({ ...n, day: nd }));
+    const dn = pickNoise(newsHist.filter((n) => n.t === "NOISE")).map((n) => ({ ...n, day: nd }));
+    const dd = [...df, ...dn].sort(() => Math.random() - 0.5);
+    const ad2 = activeDrifts.map((d) => ({ ...d, daysLeft: d.daysLeft - 1 })).filter((d) => d.daysLeft > 0);
+    const npc = { ...prices };
+    const { prices: np, newDrifts: ndr } = calcStockPrices(npc, df, ad2);
+    const adr = [...ad2, ...ndr];
+    const nph = {};
+    COMPANIES.forEach((c) => {
+      nph[c.ticker] = [...priceHist[c.ticker] || [], np[c.ticker]].slice(-60);
+    });
+    const anh = [...newsHist, ...dd], afh = [...finNewsHist, ...df];
+    const newPaw = calcPawIndex(np);
+    let nfp = futPrices, nfpc = futPrevCloses, nfph = futPriceHist, nfpos = futPositions, nfnh = futNewsHist, nftn = [];
+    if (futUnlocked) {
+      nfpc = { ...futPrices };
+      const futN = pickFutNews(futNewsHist).map((n) => ({ ...n, day: nd }));
+      nfp = calcFutPrices(nfpc, futN, newPaw);
+      nfph = {};
+      FUTURES.forEach((f) => {
+        nfph[f.ticker] = [...futPriceHist[f.ticker] || [], nfp[f.ticker]].slice(-60);
+      });
+      nfnh = [...futNewsHist, ...futN];
+      nftn = futN;
+      const liquidated = [];
+      const surviving = [];
+      futPositions.forEach((pos) => {
+        const curP = nfp[pos.ticker] || pos.entry;
+        if (isLiquidated(pos, curP)) {
+          liquidated.push(pos);
+        } else {
+          surviving.push(pos);
+        }
+      });
+      let liqCashBack = 0;
+      liquidated.forEach((pos) => {
+        const pnl = posPnL(pos, nfp[pos.ticker] || pos.entry);
+        const ret = Math.max(0, pos.margin + pnl);
+        liqCashBack += ret;
+      });
+      if (liquidated.length > 0) {
+        setCash((c) => +(c + liqCashBack).toFixed(2));
+      }
+      nfpos = surviving;
+    }
+    const holdVal = Object.entries(nh).reduce((s, [tk, h]) => s + h.shares * (np[tk] || 0), 0);
+    const futVal = nfpos.reduce((s, pos) => s + pos.margin + posPnL(pos, nfp[pos.ticker] || pos.entry), 0);
+    const totalNow = cash + holdVal + futVal;
+    const nah = [...assetHist, totalNow].slice(-200);
+    setDay(nd);
+    setHoldings(nh);
+    setPrevCloses(npc);
+    setPrices(np);
+    setPriceHist(nph);
+    setTodayNews(dd);
+    setNewsHist(anh);
+    setFinNewsHist(afh);
+    setPrevPawIndex(cp);
+    setActiveDrifts(adr);
+    setAssetHist(nah);
+    setSubscribed(ns);
+    setSubExpiry(ne);
+    setFutPrices(nfp);
+    setFutPrevCloses(nfpc);
+    setFutPriceHist(nfph);
+    setFutPositions(nfpos);
+    setFutNewsHist(nfnh);
+    setFutTodayNews(nftn);
+    setSelected(null);
+    setFutSel(null);
+    setShowNext(false);
+    setAddMarginId(null);
+    setAddMarginAmt("");
+    let toastMsg = "\u7B2C " + nd + " \u4E2A\u4EA4\u6613\u65E5\u5F00\u76D8";
+    if (!ns && subscribed) toastMsg += " \xB7 \u91D1\u878D\u7248\u5DF2\u5230\u671F";
+    showToast(toastMsg, "info");
+    if (!futUnlocked && nd <= UNLOCK_FUT_DAYS && totalNow >= UNLOCK_FUT) {
+      setFutUnlocked(true);
+      setFutDayStart(nd);
+      setFutNotice(true);
+      if (!nfp["TUNA"]) {
+        const fp2 = {}, fpc2 = {}, fph2 = {};
+        FUTURES.forEach((f) => {
+          fp2[f.ticker] = f.base;
+          fpc2[f.ticker] = f.base;
+          fph2[f.ticker] = [f.base];
+        });
+        nfp = fp2;
+        nfpc = fpc2;
+        nfph = fph2;
+      }
+    }
+    if (futUnlocked && futDayStart > 0 && nd - futDayStart <= UNLOCK_CRYPTO_DAYS && totalNow >= UNLOCK_CRYPTO && !cryptoNotice) {
+      setCryptoNotice(true);
+    }
+    save({ identity, day: nd, cash: cash + (() => {
+      let lb = 0;
+      if (futUnlocked) {
+        (futPositions || []).forEach((pos) => {
+          const curP = nfp[pos.ticker] || pos.entry;
+          if (isLiquidated(pos, curP)) {
+            lb += Math.max(0, pos.margin + posPnL(pos, curP));
+          }
+        });
+      }
+      return lb;
+    })(), holdings: nh, prices: np, prevCloses: npc, priceHist: nph, newsHist: anh, finNewsHist: afh, totalTrades, prevPawIndex: cp, activeDrifts: adr, assetHist: nah, subscribed: ns, subExpiry: ne, futUnlocked: futUnlocked || !futUnlocked && nd <= UNLOCK_FUT_DAYS && totalNow >= UNLOCK_FUT, futPrices: nfp, futPrevCloses: nfpc, futPriceHist: nfph, futPositions: nfpos, futNewsHist: nfnh, futDayStart: futDayStart || (!futUnlocked && nd <= UNLOCK_FUT_DAYS && totalNow >= UNLOCK_FUT ? nd : 0) });
+  };
+  const handleTrade = (ticker) => {
+    const q = parseInt(qty);
+    if (!q || q <= 0) {
+      showToast("\u8BF7\u8F93\u5165\u6709\u6548\u6570\u91CF", "err");
+      return;
+    }
+    const price = prices[ticker], pc = prevCloses[ticker];
+    if (tradeMode === "buy") {
+      if (isLimitUp(price, pc) && day > 1) {
+        showToast("\u6DA8\u505C\uFF0C\u4E0D\u53EF\u4E70\u5165", "err");
+        return;
+      }
+      const cost = q * price, fee = +(cost * feeRate).toFixed(2), tc = cost + fee;
+      if (tc > cash) {
+        showToast("\u4F59\u989D\u4E0D\u8DB3", "err");
+        return;
+      }
+      const prev = holdings[ticker] || { shares: 0, avgCost: 0, available: 0, todayBought: 0 };
+      const ts = prev.shares + q, ac = +((prev.shares * prev.avgCost + cost) / ts).toFixed(2);
+      const nhh = { ...holdings, [ticker]: { shares: ts, avgCost: ac, available: prev.available, todayBought: prev.todayBought + q } };
+      const nc = +(cash - tc).toFixed(2);
+      setCash(nc);
+      setHoldings(nhh);
+      setTotalTrades((t) => t + 1);
+      setQty("");
+      showToast("\u4E70\u5165 " + q + "\u80A1 " + ticker + " @ \u20A5" + price, "up");
+      save({ ...getAll(), cash: nc, holdings: nhh, totalTrades: totalTrades + 1 });
+    } else {
+      if (isLimitDown(price, pc) && day > 1) {
+        showToast("\u8DCC\u505C\uFF0C\u4E0D\u53EF\u5356\u51FA", "err");
+        return;
+      }
+      const held = holdings[ticker];
+      if (!held) {
+        showToast("\u6682\u65E0\u6301\u4ED3", "err");
+        return;
+      }
+      if (q > held.available) {
+        showToast("T+1\u9650\u5236\uFF0C\u4EC5\u53EF\u5356" + held.available + "\u80A1", "err");
+        return;
+      }
+      const rev = q * price, fee = +(rev * feeRate).toFixed(2), nr = rev - fee;
+      const ns2 = held.shares - q;
+      const nhh = { ...holdings };
+      if (ns2 <= 0) delete nhh[ticker];
+      else nhh[ticker] = { ...held, shares: ns2, available: held.available - q };
+      const nc = +(cash + nr).toFixed(2);
+      setCash(nc);
+      setHoldings(nhh);
+      setTotalTrades((t) => t + 1);
+      setQty("");
+      const pf = (price - held.avgCost) * q - fee;
+      showToast("\u5356\u51FA " + q + "\u80A1 \xB7 " + (pf >= 0 ? "\u76C8\u5229" : "\u4E8F\u635F") + " \u20A5" + Math.abs(pf).toFixed(2), pf >= 0 ? "up" : "down");
+      save({ ...getAll(), cash: nc, holdings: nhh, totalTrades: totalTrades + 1 });
+    }
+  };
+  const handleOpenPos = (ticker) => {
+    const amt = parseFloat(futAmt);
+    if (!amt || amt <= 0) {
+      showToast("\u8BF7\u8F93\u5165\u4FDD\u8BC1\u91D1\u91D1\u989D", "err");
+      return;
+    }
+    if (amt > cash) {
+      showToast("\u73B0\u91D1\u4E0D\u8DB3", "err");
+      return;
+    }
+    const entry = futPrices[ticker];
+    if (!entry) {
+      showToast("\u4EF7\u683C\u5F02\u5E38", "err");
+      return;
+    }
+    const pos = { id: Date.now(), ticker, dir: futDir, lev: futLev, margin: amt, contractSize: amt * futLev, entry, openDay: day };
+    const np = [...futPositions, pos];
+    const nc = +(cash - amt).toFixed(2);
+    setCash(nc);
+    setFutPositions(np);
+    setFutAmt("");
+    showToast((futDir === "long" ? "\u505A\u591A" : "\u505A\u7A7A") + " " + ticker + " " + futLev + "x \xB7 \u4FDD\u8BC1\u91D1\u20A5" + amt, "info");
+    save({ ...getAll(), cash: nc, futPositions: np });
+  };
+  const handleClosePos = (posId) => {
+    const pos = futPositions.find((p) => p.id === posId);
+    if (!pos) return;
+    const curP = futPrices[pos.ticker] || pos.entry;
+    const pnl = posPnL(pos, curP);
+    const ret = Math.max(0, +(pos.margin + pnl).toFixed(2));
+    const np = futPositions.filter((p) => p.id !== posId);
+    const nc = +(cash + ret).toFixed(2);
+    setCash(nc);
+    setFutPositions(np);
+    showToast("\u5E73\u4ED3 " + (pnl >= 0 ? "\u76C8\u5229" : "\u4E8F\u635F") + " \u20A5" + Math.abs(pnl).toFixed(2), pnl >= 0 ? "up" : "down");
+    save({ ...getAll(), cash: nc, futPositions: np });
+  };
+  const handleAddMargin = (posId) => {
+    const amt = parseFloat(addMarginAmt);
+    if (!amt || amt <= 0) {
+      showToast("\u8BF7\u8F93\u5165\u6709\u6548\u91D1\u989D", "err");
+      return;
+    }
+    if (amt > cash) {
+      showToast("\u73B0\u91D1\u4E0D\u8DB3", "err");
+      return;
+    }
+    const np = futPositions.map((p) => p.id === posId ? { ...p, margin: +(p.margin + amt).toFixed(2) } : p);
+    const nc = +(cash - amt).toFixed(2);
+    setCash(nc);
+    setFutPositions(np);
+    setAddMarginId(null);
+    setAddMarginAmt("");
+    const pos = futPositions.find((p) => p.id === posId);
+    const newMargin = pos.margin + amt;
+    const notional = pos.contractSize || pos.margin * pos.lev;
+    const effLev = (notional / newMargin).toFixed(1);
+    showToast("\u8FFD\u52A0\u20A5" + amt.toFixed(0) + " \xB7 \u7B49\u6548" + effLev + "x", "info");
+    save({ ...getAll(), cash: nc, futPositions: np });
+  };
+  const resetGame = () => {
+    setIdentity(null);
+    setDay(1);
+    setCash(INITIAL_CASH);
+    setHoldings({});
+    const p = {}, pc = {}, ph = {};
+    COMPANIES.forEach((c) => {
+      p[c.ticker] = c.base;
+      pc[c.ticker] = c.base;
+      ph[c.ticker] = [c.base];
+    });
+    setPrices(p);
+    setPrevCloses(pc);
+    setPriceHist(ph);
+    setTodayNews([]);
+    setNewsHist([]);
+    setFinNewsHist([]);
+    setTotalTrades(0);
+    setPrevPawIndex(1e3);
+    setActiveDrifts([]);
+    setAssetHist([]);
+    setSelected(null);
+    setSubscribed(false);
+    setSubExpiry(0);
+    setFutUnlocked(false);
+    setFutPositions([]);
+    setFutNewsHist([]);
+    const fp = {}, fpc = {}, fph = {};
+    FUTURES.forEach((f) => {
+      fp[f.ticker] = f.base;
+      fpc[f.ticker] = f.base;
+      fph[f.ticker] = [f.base];
+    });
+    setFutPrices(fp);
+    setFutPrevCloses(fpc);
+    setFutPriceHist(fph);
+    setFutDayStart(0);
+    clearSave();
+  };
+  const holdingsValue = useMemo(() => Object.entries(holdings).reduce((s, [tk, h]) => s + h.shares * (prices[tk] || 0), 0), [holdings, prices]);
+  const futValue = useMemo(() => futPositions.reduce((s, pos) => s + pos.margin + posPnL(pos, futPrices[pos.ticker] || pos.entry), 0), [futPositions, futPrices]);
+  const totalAssets = cash + holdingsValue + futValue;
+  const pawIndex = useMemo(() => calcPawIndex(prices), [prices]);
+  const pawChange = prevPawIndex > 0 ? (pawIndex - prevPawIndex) / prevPawIndex * 100 : 0;
+  const pawCum = (pawIndex - 1e3) / 1e3 * 100;
+  const goalPct = Math.min(100, totalAssets / GOAL_STOCK * 100);
+  const isSubAct = subscribed && day <= subExpiry;
+  const displayToday = isSubAct ? todayNews.filter((n) => n.t !== "NOISE") : todayNews;
+  const displayHist = isSubAct ? newsHist.filter((n) => n.t !== "NOISE") : newsHist;
+  if (!loaded) return /* @__PURE__ */ React.createElement("div", { style: { background: C.bg, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 36 } }, "\u{1F43E}"), /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "'DM Mono',monospace", fontSize: 11, color: C.textSec, letterSpacing: 3 } }, "LOADING MYSE..."));
+  if (!identity) return /* @__PURE__ */ React.createElement(IdentitySelect, { onSelect: startGame });
+  const font = "'DM Mono',monospace", fontTitle = "'Playfair Display',serif", fontHand = "'Caveat',cursive";
+  const ChartTip = ({ active, payload }) => active && payload?.[0] ? /* @__PURE__ */ React.createElement("div", { style: { background: C.card, border: "1px solid " + C.border, borderRadius: 6, padding: "4px 10px", fontSize: 11, fontFamily: font, color: C.text } }, "\u20A5", payload[0].value) : null;
+  const tabs = [["trade", "\u{1F4CA} \u80A1\u7968"], ...futUnlocked ? [["futures", "\u{1F4C8} \u671F\u8D27"]] : [], ["portfolio", "\u{1F4C1} \u6301\u4ED3"], ["news", "\u{1F4F0} \u55B5\u8054\u793E"]];
+  return /* @__PURE__ */ React.createElement("div", { style: { background: C.bg, minHeight: "100vh", fontFamily: font, color: C.text, paddingBottom: 72 } }, /* @__PURE__ */ React.createElement("div", { style: { padding: "14px 16px 10px", borderBottom: "1px solid " + C.border } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8 } }, /* @__PURE__ */ React.createElement("span", { style: { fontFamily: fontTitle, fontSize: 20, fontWeight: 700, color: C.accent, letterSpacing: 1 } }, "MYSE"), identity === "vip" && /* @__PURE__ */ React.createElement("span", { style: { fontSize: 8, padding: "2px 6px", background: "rgba(42,37,32,0.9)", color: "#e8d5b0", borderRadius: 3 } }, "VIP"), identity === "normal" && /* @__PURE__ */ React.createElement("span", { style: { fontSize: 8, padding: "2px 6px", background: C.cardAlt, color: C.textSec, borderRadius: 3, border: "1px solid " + C.border } }, "0.1%"), futUnlocked && /* @__PURE__ */ React.createElement("span", { style: { fontSize: 8, padding: "2px 6px", background: C.futBg, color: C.futures, borderRadius: 3 } }, "\u671F\u8D27")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 8, color: C.textSec, letterSpacing: 3, textTransform: "uppercase", marginTop: 1 } }, "Mew York Stock Exchange")), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "right" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 8, color: C.textSec, letterSpacing: 2, textTransform: "uppercase" } }, "TOTAL ASSETS"), /* @__PURE__ */ React.createElement("div", { style: { fontFamily: fontTitle, fontSize: 19, fontWeight: 600 } }, "\u20A5", fmt(totalAssets)))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", fontSize: 10, color: C.textSec } }, /* @__PURE__ */ React.createElement("span", null, "\u73B0\u91D1 \u20A5", fmt(cash)), /* @__PURE__ */ React.createElement("span", null, "\u80A1\u7968 \u20A5", fmt(holdingsValue)), futUnlocked && /* @__PURE__ */ React.createElement("span", { style: { color: C.futures } }, "\u671F\u8D27 \u20A5", fmt(futValue)), /* @__PURE__ */ React.createElement("span", null, "Day ", day))), /* @__PURE__ */ React.createElement("div", { style: { padding: "6px 16px 8px", borderBottom: "1px solid " + C.border, background: "rgba(160,125,40,0.02)" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginBottom: 4 } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 9, color: C.textSec } }, "\u76EE\u6807 \u20A510M"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 9, color: C.accent, fontWeight: 500 } }, goalPct.toFixed(1), "%")), /* @__PURE__ */ React.createElement("div", { style: { height: 3, background: C.border, borderRadius: 2, overflow: "hidden" } }, /* @__PURE__ */ React.createElement("div", { style: { height: "100%", width: goalPct + "%", background: "linear-gradient(90deg," + C.accent + ",#c4a548)", borderRadius: 2, transition: "width 0.5s" } })), !futUnlocked && day <= UNLOCK_FUT_DAYS && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 8, color: C.textSec, marginTop: 3, textAlign: "right" } }, "\u{1F512} ", UNLOCK_FUT_DAYS - day, "\u5929\u5185\u20A5200K\u89E3\u9501\u9690\u85CF\u73A9\u6CD5"), futUnlocked && futDayStart > 0 && day - futDayStart <= UNLOCK_CRYPTO_DAYS && totalAssets < UNLOCK_CRYPTO && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 8, color: C.futures, marginTop: 3, textAlign: "right" } }, "\u{1F512} ", UNLOCK_CRYPTO_DAYS - (day - futDayStart), "\u5929\u5185\u20A51M\u89E3\u9501\u9690\u85CF\u73A9\u6CD5")), /* @__PURE__ */ React.createElement("div", { style: { padding: "8px 16px", display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid " + C.border, background: "rgba(160,125,40,0.04)" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 10, color: C.accent, letterSpacing: 2, fontWeight: 500 } }, "PAW 500"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 15, fontWeight: 500 } }, pawIndex.toFixed(2)), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11, color: pawChange >= 0 ? C.up : C.down, lineHeight: 1.2 } }, pawChange >= 0 ? "\u25B2" : "\u25BC", Math.abs(pawChange).toFixed(2), "%"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 8, color: C.textSec, lineHeight: 1.2 } }, "\u7D2F\u8BA1 ", pawCum >= 0 ? "+" : "", pawCum.toFixed(1), "%")), /* @__PURE__ */ React.createElement("span", { style: { flex: 1 } }), /* @__PURE__ */ React.createElement("button", { onClick: () => setShowNext(true), style: { padding: "6px 14px", borderRadius: 6, border: "none", fontSize: 11, fontWeight: 500, background: C.accent, color: "#fff", fontFamily: font, cursor: "pointer" } }, "\u4E0B\u4E00\u5929 \u25B6")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", borderBottom: "1px solid " + C.border } }, tabs.map(([k, label]) => /* @__PURE__ */ React.createElement("button", { key: k, onClick: () => setTab(k), style: { flex: 1, padding: "9px 0", textAlign: "center", fontSize: 11, letterSpacing: 1, color: tab === k ? k === "futures" ? C.futures : C.accent : C.textSec, fontWeight: tab === k ? 600 : 400, borderBottom: tab === k ? "2px solid " + (k === "futures" ? C.futures : C.accent) : "2px solid transparent", background: "transparent", border: "none", fontFamily: font, cursor: "pointer" } }, label))), tab === "trade" && /* @__PURE__ */ React.createElement("div", null, COMPANIES.map((c) => {
+    const price = prices[c.ticker] || c.base, pc = prevCloses[c.ticker] || c.base;
+    const change = pc > 0 ? (price - pc) / pc * 100 : 0;
+    const lu = isLimitUp(price, pc) && day > 1, ld = isLimitDown(price, pc) && day > 1;
+    const held = holdings[c.ticker], isSel = selected === c.ticker;
+    const extremeTag = getExtremeTag(priceHist[c.ticker], price);
+    const hist = (priceHist[c.ticker] || []).map((v, i) => ({ t: i + 1, p: v }));
+    const pf = held ? (price - held.avgCost) * held.shares : 0;
+    const pfp = held && held.avgCost > 0 ? (price - held.avgCost) / held.avgCost * 100 : 0;
+    return /* @__PURE__ */ React.createElement("div", { key: c.ticker }, /* @__PURE__ */ React.createElement("div", { onClick: () => {
+      setSelected(isSel ? null : c.ticker);
+      setQty("");
+      setTradeMode("buy");
+    }, style: { padding: "12px 16px", borderBottom: "1px solid " + C.border, cursor: "pointer", background: isSel ? C.cardAlt : "transparent" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 20, width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", background: C.cardAlt, borderRadius: 8 } }, c.emoji), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, fontWeight: 500, letterSpacing: 1, display: "flex", alignItems: "center", gap: 6 } }, c.ticker, lu && /* @__PURE__ */ React.createElement("span", { style: { fontSize: 9, color: C.up, background: C.upBg, padding: "1px 5px", borderRadius: 3 } }, "\u6DA8\u505C"), ld && /* @__PURE__ */ React.createElement("span", { style: { fontSize: 9, color: C.down, background: C.downBg, padding: "1px 5px", borderRadius: 3 } }, "\u8DCC\u505C"), extremeTag === "high" && /* @__PURE__ */ React.createElement("span", { style: { fontSize: 9 } }, "\u{1F680}"), extremeTag === "low" && /* @__PURE__ */ React.createElement("span", { style: { fontSize: 9 } }, "\u2693")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: C.textSec, marginTop: 1 } }, c.name, " \xB7 ", c.state))), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "right" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, fontWeight: 500, color: change > 0 ? C.up : change < 0 ? C.down : C.text } }, "\u20A5", price.toFixed(2)), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: change > 0 ? C.up : change < 0 ? C.down : C.textSec } }, change >= 0 ? "+" : "", change.toFixed(2), "%"))), held && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 8, marginLeft: 44, display: "flex", gap: 12, fontSize: 10, color: C.textSec, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("span", null, "\u6301\u6709 ", /* @__PURE__ */ React.createElement("b", { style: { color: C.text } }, held.shares, "\u80A1")), /* @__PURE__ */ React.createElement("span", null, "\u6210\u672C \u20A5", held.avgCost.toFixed(2)), /* @__PURE__ */ React.createElement("span", { style: { color: pf >= 0 ? C.up : C.down } }, pf >= 0 ? "+" : "", "\u20A5", pf.toFixed(2), " (", pfp >= 0 ? "+" : "", pfp.toFixed(1), "%)"), held.todayBought > 0 && /* @__PURE__ */ React.createElement("span", { style: { color: C.accent } }, "\u4ECA\u4E70", held.todayBought, "(T+1)"))), isSel && /* @__PURE__ */ React.createElement("div", { style: { padding: "0 16px 14px", background: C.cardAlt, borderBottom: "1px solid " + C.border } }, hist.length > 1 && /* @__PURE__ */ React.createElement("div", { style: { height: 100, marginBottom: 12, marginLeft: -8 } }, /* @__PURE__ */ React.createElement(ResponsiveContainer, { width: "100%", height: "100%" }, /* @__PURE__ */ React.createElement(AreaChart, { data: hist }, /* @__PURE__ */ React.createElement("defs", null, /* @__PURE__ */ React.createElement("linearGradient", { id: "g-" + c.ticker, x1: "0", y1: "0", x2: "0", y2: "1" }, /* @__PURE__ */ React.createElement("stop", { offset: "0%", stopColor: change >= 0 ? C.up : C.down, stopOpacity: 0.18 }), /* @__PURE__ */ React.createElement("stop", { offset: "100%", stopColor: change >= 0 ? C.up : C.down, stopOpacity: 0.02 }))), /* @__PURE__ */ React.createElement(XAxis, { dataKey: "t", hide: true }), /* @__PURE__ */ React.createElement(YAxis, { domain: ["auto", "auto"], hide: true }), /* @__PURE__ */ React.createElement(Tooltip, { content: /* @__PURE__ */ React.createElement(ChartTip, null) }), /* @__PURE__ */ React.createElement(Area, { type: "monotone", dataKey: "p", stroke: change >= 0 ? C.up : C.down, strokeWidth: 1.5, fill: "url(#g-" + c.ticker + ")", dot: false, animationDuration: 400 })))), /* @__PURE__ */ React.createElement("div", { style: { background: C.card, borderRadius: 10, padding: 14, border: "1px solid " + C.border } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", marginBottom: 10, borderRadius: 6, overflow: "hidden", border: "1px solid " + C.border } }, /* @__PURE__ */ React.createElement("button", { onClick: () => {
+      setTradeMode("buy");
+      setQty("");
+    }, style: { flex: 1, padding: "7px 0", textAlign: "center", fontSize: 11, fontWeight: 500, border: "none", fontFamily: font, cursor: "pointer", background: tradeMode === "buy" ? C.upBg : "transparent", color: tradeMode === "buy" ? C.up : C.textSec } }, "\u4E70\u5165", lu ? " \u{1F512}" : ""), /* @__PURE__ */ React.createElement("button", { onClick: () => {
+      setTradeMode("sell");
+      setQty("");
+    }, style: { flex: 1, padding: "7px 0", textAlign: "center", fontSize: 11, fontWeight: 500, border: "none", fontFamily: font, cursor: "pointer", background: tradeMode === "sell" ? C.downBg : "transparent", color: tradeMode === "sell" ? C.down : C.textSec } }, "\u5356\u51FA", ld ? " \u{1F512}" : "")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8 } }, /* @__PURE__ */ React.createElement("input", { type: "number", placeholder: "\u6570\u91CF", value: qty, onChange: (e) => setQty(e.target.value), style: { flex: 1, background: C.bg, border: "1px solid " + C.border, borderRadius: 6, padding: "8px 12px", color: C.text, fontSize: 14, fontFamily: font, outline: "none" } }), /* @__PURE__ */ React.createElement("button", { onClick: () => handleTrade(c.ticker), style: { padding: "8px 18px", borderRadius: 6, border: "none", fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: font, background: tradeMode === "buy" ? C.up : C.down, color: "#fff" } }, tradeMode === "buy" ? "\u4E70\u5165" : "\u5356\u51FA")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, marginTop: 8 } }, tradeMode === "buy" ? /* @__PURE__ */ React.createElement(React.Fragment, null, [10, 50, 100].map((n) => /* @__PURE__ */ React.createElement("button", { key: n, onClick: () => setQty(String(n)), style: { flex: 1, padding: "5px 0", background: "rgba(0,0,0,0.02)", border: "1px solid " + C.border, borderRadius: 4, color: C.textSec, fontSize: 10, cursor: "pointer", fontFamily: font, textAlign: "center" } }, n, "\u80A1")), /* @__PURE__ */ React.createElement("button", { onClick: () => setQty(String(Math.max(0, Math.floor(cash / (price * (1 + feeRate)))))), style: { flex: 1, padding: "5px 0", background: "rgba(0,0,0,0.02)", border: "1px solid " + C.border, borderRadius: 4, color: C.textSec, fontSize: 10, cursor: "pointer", fontFamily: font, textAlign: "center" } }, "\u5168\u4ED3")) : held && held.available > 0 ? /* @__PURE__ */ React.createElement(React.Fragment, null, [{ l: "1/4", v: Math.ceil(held.available / 4) }, { l: "1/2", v: Math.ceil(held.available / 2) }].map((x) => /* @__PURE__ */ React.createElement("button", { key: x.l, onClick: () => setQty(String(x.v)), style: { flex: 1, padding: "5px 0", background: "rgba(0,0,0,0.02)", border: "1px solid " + C.border, borderRadius: 4, color: C.textSec, fontSize: 10, cursor: "pointer", fontFamily: font, textAlign: "center" } }, x.l)), /* @__PURE__ */ React.createElement("button", { onClick: () => setQty(String(held.available)), style: { flex: 1.2, padding: "5px 0", background: C.dangerBg, border: "1px solid rgba(192,57,43,0.25)", borderRadius: 4, color: C.danger, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: font, textAlign: "center" } }, "\u6E05\u4ED3")) : /* @__PURE__ */ React.createElement("span", { style: { fontSize: 10, color: C.textSec, padding: 4 } }, "\u6682\u65E0\u53EF\u5356")), qty && parseInt(qty) > 0 && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 8, padding: "8px 10px", background: C.bg, borderRadius: 6, fontSize: 10, color: C.textSec, lineHeight: 1.8 } }, tradeMode === "buy" ? (() => {
+      const q = parseInt(qty), cost = q * price, fee = +(cost * feeRate).toFixed(2), rem = cash - cost - fee, pp = totalAssets > 0 ? cost / totalAssets * 100 : 0;
+      return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", null, "\u20A5", fmt(cost), fee > 0 && /* @__PURE__ */ React.createElement("span", null, " +\u8D39\u20A5", fee.toFixed(2))), /* @__PURE__ */ React.createElement("div", { style: { color: rem < 0 ? C.up : C.text } }, "\u4F59\u989D \u20A5", rem >= 0 ? fmt(rem) : "\u4E0D\u8DB3"), /* @__PURE__ */ React.createElement("div", null, "\u4ED3\u4F4D ", pp.toFixed(1), "%"));
+    })() : (() => {
+      const q = parseInt(qty), rev = q * price, fee = +(rev * feeRate).toFixed(2), p2 = held ? (price - held.avgCost) * q - fee : 0;
+      return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", null, "\u6536\u5165 \u20A5", fmt(rev - fee)), held && /* @__PURE__ */ React.createElement("div", { style: { color: p2 >= 0 ? C.up : C.down } }, p2 >= 0 ? "\u76C8" : "\u4E8F", " \u20A5", Math.abs(p2).toFixed(2)));
+    })()))));
+  }), /* @__PURE__ */ React.createElement(ResetButton, { onReset: resetGame })), tab === "futures" && futUnlocked && /* @__PURE__ */ React.createElement("div", { style: { padding: "0 16px" } }, futPositions.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { padding: "16px 0 8px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: C.futures, letterSpacing: 2, textTransform: "uppercase", marginBottom: 8 } }, "\u6301\u4ED3\u4E2D"), futPositions.map((pos) => {
+    const f = FUTURES.find((x) => x.ticker === pos.ticker);
+    const curP = futPrices[pos.ticker] || pos.entry;
+    const pnl = posPnL(pos, curP);
+    const pnlPct = pos.margin > 0 ? pnl / pos.margin * 100 : 0;
+    const equity = pos.margin + pnl;
+    const dangerZone = equity < pos.margin * 0.3;
+    const notional = pos.contractSize || pos.margin * pos.lev;
+    const effLev = pos.margin > 0 ? notional / pos.margin : pos.lev;
+    const isAdding = addMarginId === pos.id;
+    return /* @__PURE__ */ React.createElement("div", { key: pos.id, style: { background: C.card, borderRadius: 10, padding: "12px 14px", marginBottom: 8, border: "1px solid " + (dangerZone ? "rgba(192,57,43,0.3)" : C.border), borderLeft: "3px solid " + (pos.dir === "long" ? C.up : C.down) } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8 } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 16 } }, f?.emoji), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 500 } }, pos.ticker), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 10, color: pos.dir === "long" ? C.up : C.down, marginLeft: 6 } }, pos.dir === "long" ? "\u505A\u591A \u25B2" : "\u505A\u7A7A \u25BC", " ", effLev.toFixed(1), "x"))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => {
+      setAddMarginId(isAdding ? null : pos.id);
+      setAddMarginAmt("");
+    }, style: { padding: "5px 10px", borderRadius: 6, border: "1px solid " + (isAdding ? C.futures : C.border), background: isAdding ? C.futBg : C.card, color: isAdding ? C.futures : C.textSec, fontSize: 10, fontFamily: font, cursor: "pointer" } }, "\u8FFD\u52A0"), /* @__PURE__ */ React.createElement("button", { onClick: () => handleClosePos(pos.id), style: { padding: "5px 10px", borderRadius: 6, border: "1px solid " + C.border, background: C.card, color: C.text, fontSize: 10, fontFamily: font, cursor: "pointer", fontWeight: 500 } }, "\u5E73\u4ED3"))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 12, fontSize: 10, color: C.textSec, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("span", null, "\u4FDD\u8BC1\u91D1 \u20A5", pos.margin.toFixed(0)), /* @__PURE__ */ React.createElement("span", null, "\u5F00\u4ED3 \u20A5", pos.entry.toFixed(2)), /* @__PURE__ */ React.createElement("span", null, "\u73B0\u4EF7 \u20A5", curP.toFixed(2)), /* @__PURE__ */ React.createElement("span", { style: { color: pnl >= 0 ? C.up : C.down, fontWeight: 600 } }, pnl >= 0 ? "+" : "", "\u20A5", pnl.toFixed(2), " (", pnlPct >= 0 ? "+" : "", pnlPct.toFixed(1), "%)")), dangerZone && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 6, fontSize: 10, color: C.danger, fontWeight: 500 } }, "\u26A0 \u63A5\u8FD1\u7206\u4ED3\u7EBF"), isAdding && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 8, padding: "10px 12px", background: C.bg, borderRadius: 8, border: "1px solid " + C.border } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: C.futures, marginBottom: 6 } }, "\u8FFD\u52A0\u4FDD\u8BC1\u91D1 \xB7 \u964D\u4F4E\u6760\u6746"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6 } }, /* @__PURE__ */ React.createElement("input", { type: "number", placeholder: "\u91D1\u989D \u20A5", value: addMarginAmt, onChange: (e) => setAddMarginAmt(e.target.value), style: { flex: 1, background: C.card, border: "1px solid " + C.border, borderRadius: 6, padding: "7px 10px", color: C.text, fontSize: 12, fontFamily: font, outline: "none" } }), /* @__PURE__ */ React.createElement("button", { onClick: () => handleAddMargin(pos.id), style: { padding: "7px 14px", borderRadius: 6, border: "none", background: C.futures, color: "#fff", fontSize: 11, fontFamily: font, cursor: "pointer" } }, "\u786E\u8BA4")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, marginTop: 6 } }, [1e3, 5e3, 1e4].map((a) => /* @__PURE__ */ React.createElement("button", { key: a, onClick: () => setAddMarginAmt(String(a)), style: { flex: 1, padding: "4px 0", background: "rgba(0,0,0,0.02)", border: "1px solid " + C.border, borderRadius: 4, color: C.textSec, fontSize: 9, cursor: "pointer", fontFamily: font, textAlign: "center" } }, "\u20A5", a >= 1e3 ? a / 1e3 + "K" : a))), addMarginAmt && parseFloat(addMarginAmt) > 0 && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 6, fontSize: 10, color: C.textSec } }, "\u8FFD\u52A0\u540E\u7B49\u6548 ", (notional / (pos.margin + parseFloat(addMarginAmt))).toFixed(1), "x", parseFloat(addMarginAmt) > cash && /* @__PURE__ */ React.createElement("span", { style: { color: C.danger, marginLeft: 8 } }, "\u26A0 \u73B0\u91D1\u4E0D\u8DB3"))));
+  })), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: C.futures, letterSpacing: 2, textTransform: "uppercase", marginBottom: 8, marginTop: futPositions.length ? 0 : 16 } }, "\u5927\u5B97\u5546\u54C1\u884C\u60C5"), FUTURES.map((f) => {
+    const price = futPrices[f.ticker] || f.base;
+    const pc = futPrevCloses[f.ticker] || f.base;
+    const change = pc > 0 ? (price - pc) / pc * 100 : 0;
+    const isSel = futSel === f.ticker;
+    const futExtremeTag = getExtremeTag(futPriceHist[f.ticker], price);
+    const hist = (futPriceHist[f.ticker] || []).map((v, i) => ({ t: i + 1, p: v }));
+    return /* @__PURE__ */ React.createElement("div", { key: f.ticker }, /* @__PURE__ */ React.createElement("div", { onClick: () => {
+      setFutSel(isSel ? null : f.ticker);
+      setFutAmt("");
+      setFutDir("long");
+      setFutLev(5);
+    }, style: { padding: "12px 0", borderBottom: "1px solid " + C.border, cursor: "pointer" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 20, width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", background: C.futBg, borderRadius: 8 } }, f.emoji), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, fontWeight: 500, letterSpacing: 1, display: "flex", alignItems: "center", gap: 4 } }, f.ticker, futExtremeTag === "high" && /* @__PURE__ */ React.createElement("span", { style: { fontSize: 9 } }, "\u{1F680}"), futExtremeTag === "low" && /* @__PURE__ */ React.createElement("span", { style: { fontSize: 9 } }, "\u2693")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: C.textSec, marginTop: 1 } }, f.name))), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "right" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, fontWeight: 500, color: change > 0 ? C.up : change < 0 ? C.down : C.text } }, "\u20A5", price.toFixed(2)), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: change > 0 ? C.up : change < 0 ? C.down : C.textSec } }, change >= 0 ? "+" : "", change.toFixed(2), "%")))), isSel && /* @__PURE__ */ React.createElement("div", { style: { padding: "0 0 14px", background: C.cardAlt, borderBottom: "1px solid " + C.border, borderRadius: "0 0 8px 8px", marginTop: -1, paddingTop: 10 } }, hist.length > 1 && /* @__PURE__ */ React.createElement("div", { style: { height: 90, marginBottom: 10, marginLeft: -8 } }, /* @__PURE__ */ React.createElement(ResponsiveContainer, { width: "100%", height: "100%" }, /* @__PURE__ */ React.createElement(AreaChart, { data: hist }, /* @__PURE__ */ React.createElement("defs", null, /* @__PURE__ */ React.createElement("linearGradient", { id: "gf-" + f.ticker, x1: "0", y1: "0", x2: "0", y2: "1" }, /* @__PURE__ */ React.createElement("stop", { offset: "0%", stopColor: C.futures, stopOpacity: 0.15 }), /* @__PURE__ */ React.createElement("stop", { offset: "100%", stopColor: C.futures, stopOpacity: 0.02 }))), /* @__PURE__ */ React.createElement(XAxis, { dataKey: "t", hide: true }), /* @__PURE__ */ React.createElement(YAxis, { domain: ["auto", "auto"], hide: true }), /* @__PURE__ */ React.createElement(Tooltip, { content: /* @__PURE__ */ React.createElement(ChartTip, null) }), /* @__PURE__ */ React.createElement(Area, { type: "monotone", dataKey: "p", stroke: C.futures, strokeWidth: 1.5, fill: "url(#gf-" + f.ticker + ")", dot: false })))), /* @__PURE__ */ React.createElement("div", { style: { background: C.card, borderRadius: 10, padding: 14, border: "1px solid " + C.border, margin: "0 0px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", marginBottom: 10, borderRadius: 6, overflow: "hidden", border: "1px solid " + C.border } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setFutDir("long"), style: { flex: 1, padding: "7px 0", textAlign: "center", fontSize: 11, fontWeight: 500, border: "none", fontFamily: font, cursor: "pointer", background: futDir === "long" ? C.upBg : "transparent", color: futDir === "long" ? C.up : C.textSec } }, "\u505A\u591A \u25B2"), /* @__PURE__ */ React.createElement("button", { onClick: () => setFutDir("short"), style: { flex: 1, padding: "7px 0", textAlign: "center", fontSize: 11, fontWeight: 500, border: "none", fontFamily: font, cursor: "pointer", background: futDir === "short" ? C.downBg : "transparent", color: futDir === "short" ? C.down : C.textSec } }, "\u505A\u7A7A \u25BC")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 10 } }, LEVERAGES.map((l) => /* @__PURE__ */ React.createElement("button", { key: l, onClick: () => setFutLev(l), style: { flex: 1, padding: "6px 0", borderRadius: 6, border: "1px solid " + (futLev === l ? C.futures : C.border), background: futLev === l ? C.futBg : "transparent", color: futLev === l ? C.futures : C.textSec, fontSize: 11, fontWeight: futLev === l ? 600 : 400, fontFamily: font, cursor: "pointer" } }, l, "x"))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8 } }, /* @__PURE__ */ React.createElement("input", { type: "number", placeholder: "\u4FDD\u8BC1\u91D1 \u20A5", value: futAmt, onChange: (e) => setFutAmt(e.target.value), style: { flex: 1, background: C.bg, border: "1px solid " + C.border, borderRadius: 6, padding: "8px 12px", color: C.text, fontSize: 14, fontFamily: font, outline: "none" } }), /* @__PURE__ */ React.createElement("button", { onClick: () => handleOpenPos(f.ticker), style: { padding: "8px 18px", borderRadius: 6, border: "none", fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: font, background: C.futures, color: "#fff", whiteSpace: "nowrap" } }, "\u5F00\u4ED3")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, marginTop: 8 } }, [1e3, 5e3, 1e4].map((a) => /* @__PURE__ */ React.createElement("button", { key: a, onClick: () => setFutAmt(String(a)), style: { flex: 1, padding: "5px 0", background: "rgba(0,0,0,0.02)", border: "1px solid " + C.border, borderRadius: 4, color: C.textSec, fontSize: 10, cursor: "pointer", fontFamily: font, textAlign: "center" } }, "\u20A5", a >= 1e3 ? a / 1e3 + "K" : a)), /* @__PURE__ */ React.createElement("button", { onClick: () => setFutAmt(String(Math.floor(cash))), style: { flex: 1, padding: "5px 0", background: C.dangerBg, border: "1px solid rgba(192,57,43,0.25)", borderRadius: 4, color: C.danger, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: font, textAlign: "center" } }, "\u68AD\u54C8")), futAmt && parseFloat(futAmt) > 0 && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 8, padding: "8px 10px", background: C.bg, borderRadius: 6, fontSize: 10, color: C.textSec, lineHeight: 1.8 } }, /* @__PURE__ */ React.createElement("div", null, "\u5408\u7EA6\u4EF7\u503C \u20A5", fmt(parseFloat(futAmt) * futLev)), /* @__PURE__ */ React.createElement("div", null, "\u7206\u4ED3\u7EBF \u4EF7\u683C", futDir === "long" ? "\u8DCC" : "\u6DA8", (LIQ_THRESHOLD / futLev * 100).toFixed(1), "%"), parseFloat(futAmt) > cash && /* @__PURE__ */ React.createElement("div", { style: { color: C.danger, fontWeight: 600 } }, "\u26A0 \u73B0\u91D1\u4E0D\u8DB3")))));
+  }), futTodayNews.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 16 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: C.futures, letterSpacing: 2, textTransform: "uppercase", marginBottom: 8 } }, "\u5927\u5B97\u7B80\u62A5 \xB7 Day ", day), futTodayNews.map((n, i) => /* @__PURE__ */ React.createElement(NewsCard, { key: "fn-" + i, n, subscribed: true, isFutures: true })))), tab === "portfolio" && /* @__PURE__ */ React.createElement("div", { style: { padding: "0 16px" } }, /* @__PURE__ */ React.createElement("div", { style: { padding: "16px 0 8px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: C.textSec, letterSpacing: 2, textTransform: "uppercase", marginBottom: 8 } }, "\u603B\u8D44\u4EA7\u8D70\u52BF"), assetHist.length > 1 ? /* @__PURE__ */ React.createElement("div", { style: { height: 120, marginLeft: -8 } }, /* @__PURE__ */ React.createElement(ResponsiveContainer, { width: "100%", height: "100%" }, /* @__PURE__ */ React.createElement(AreaChart, { data: assetHist.map((v, i) => ({ d: i + 1, v })) }, /* @__PURE__ */ React.createElement("defs", null, /* @__PURE__ */ React.createElement("linearGradient", { id: "asset-g", x1: "0", y1: "0", x2: "0", y2: "1" }, /* @__PURE__ */ React.createElement("stop", { offset: "0%", stopColor: totalAssets >= INITIAL_CASH ? C.up : C.down, stopOpacity: 0.15 }), /* @__PURE__ */ React.createElement("stop", { offset: "100%", stopColor: totalAssets >= INITIAL_CASH ? C.up : C.down, stopOpacity: 0.02 }))), /* @__PURE__ */ React.createElement(XAxis, { dataKey: "d", hide: true }), /* @__PURE__ */ React.createElement(YAxis, { domain: ["auto", "auto"], hide: true }), /* @__PURE__ */ React.createElement(Tooltip, { content: /* @__PURE__ */ React.createElement(ChartTip, null) }), /* @__PURE__ */ React.createElement(Area, { type: "monotone", dataKey: "v", stroke: totalAssets >= INITIAL_CASH ? C.up : C.down, strokeWidth: 1.5, fill: "url(#asset-g)", dot: false })))) : /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: C.textSec, padding: "20px 0", textAlign: "center" } }, "\u4EA4\u6613\u51E0\u5929\u540E\u663E\u793A\u8D70\u52BF\u56FE")), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 } }, [{ l: "\u603B\u8D44\u4EA7", v: "\u20A5" + fmt(totalAssets), c: C.text }, { l: "\u7D2F\u8BA1\u6536\u76CA", v: (totalAssets - INITIAL_CASH >= 0 ? "+" : "") + "\u20A5" + fmt(totalAssets - INITIAL_CASH), c: totalAssets >= INITIAL_CASH ? C.up : C.down }, { l: "\u6536\u76CA\u7387", v: ((totalAssets - INITIAL_CASH) / INITIAL_CASH * 100).toFixed(2) + "%", c: totalAssets >= INITIAL_CASH ? C.up : C.down }, { l: "\u4EA4\u6613\u6B21\u6570", v: totalTrades, c: C.text }].map((s, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { background: C.card, borderRadius: 8, padding: "10px 12px", border: "1px solid " + C.border } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 9, color: C.textSec, marginBottom: 4 } }, s.l), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, fontWeight: 500, color: s.c } }, s.v)))), Object.keys(holdings).length === 0 && futPositions.length === 0 && /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "24px 0", color: C.textSec, fontSize: 12 } }, "\u7A7A\u4ED3"), Object.entries(holdings).map(([tk, h]) => {
+    const c = COMPANIES.find((x) => x.ticker === tk);
+    if (!c) return null;
+    const p2 = prices[tk] || c.base, v = h.shares * p2, pf2 = (p2 - h.avgCost) * h.shares, pt = totalAssets > 0 ? v / totalAssets * 100 : 0;
+    return /* @__PURE__ */ React.createElement("div", { key: tk, style: { background: C.card, borderRadius: 10, padding: "12px 14px", marginBottom: 8, border: "1px solid " + C.border } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8 } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 16 } }, c.emoji), /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 500 } }, tk), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 10, color: C.textSec } }, c.name)), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, fontWeight: 500 } }, "\u20A5", fmt(v))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 12, fontSize: 10, color: C.textSec } }, /* @__PURE__ */ React.createElement("span", null, h.shares, "\u80A1"), /* @__PURE__ */ React.createElement("span", { style: { color: pf2 >= 0 ? C.up : C.down, fontWeight: 500 } }, pf2 >= 0 ? "+" : "", "\u20A5", pf2.toFixed(2)), /* @__PURE__ */ React.createElement("span", { style: { color: C.accent } }, pt.toFixed(1), "%")));
+  }), futPositions.map((pos) => {
+    const f = FUTURES.find((x) => x.ticker === pos.ticker);
+    const curP = futPrices[pos.ticker] || pos.entry;
+    const pnl = posPnL(pos, curP);
+    const pNotional = pos.contractSize || pos.margin * pos.lev;
+    const pEffLev = pos.margin > 0 ? pNotional / pos.margin : pos.lev;
+    return /* @__PURE__ */ React.createElement("div", { key: pos.id, style: { background: C.card, borderRadius: 10, padding: "12px 14px", marginBottom: 8, border: "1px solid " + C.border, borderLeft: "3px solid " + C.futures } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8 } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 16 } }, f?.emoji), /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 500 } }, pos.ticker), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 10, color: pos.dir === "long" ? C.up : C.down } }, pos.dir === "long" ? "\u591A" : "\u7A7A", " ", pEffLev.toFixed(1), "x")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, fontWeight: 500, color: pnl >= 0 ? C.up : C.down } }, pnl >= 0 ? "+" : "", "\u20A5", pnl.toFixed(2))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: C.textSec } }, "\u4FDD\u8BC1\u91D1 \u20A5", pos.margin.toFixed(0)));
+  })), tab === "news" && /* @__PURE__ */ React.createElement("div", { style: { padding: "0 16px" } }, /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "20px 0 12px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 24 } }, "\u{1F4F0}"), /* @__PURE__ */ React.createElement("div", { style: { fontFamily: fontTitle, fontSize: 18, fontWeight: 700, letterSpacing: 2, marginTop: 4 } }, "MeowAP"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 9, color: C.textSec, letterSpacing: 3, textTransform: "uppercase" } }, isSubAct ? "\u91D1\u878D\u7248" : "\u7EFC\u5408\u7248")), !isSubAct && /* @__PURE__ */ React.createElement("div", { style: { background: "linear-gradient(135deg,#2a2520,#3d3530)", borderRadius: 10, padding: "14px 16px", marginBottom: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontFamily: fontHand, fontSize: 15, color: "#e8d5b0", marginBottom: 4 } }, "\u5347\u7EA7\u4E3A\u91D1\u878D\u7248\uFF1F"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "rgba(200,190,170,0.6)" } }, "\u20A5", SUB_COST, "/", SUB_DAYS, "\u5929")), /* @__PURE__ */ React.createElement("button", { onClick: () => setShowSub(true), style: { padding: "8px 16px", borderRadius: 6, border: "1px solid rgba(232,213,176,0.4)", background: "transparent", color: "#e8d5b0", fontSize: 11, fontFamily: font, cursor: "pointer" } }, "\u8BA2\u9605"))), isSubAct && /* @__PURE__ */ React.createElement("div", { style: { background: C.cardAlt, borderRadius: 8, padding: "8px 14px", marginBottom: 14, display: "flex", justifyContent: "space-between", border: "1px solid " + C.border } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 10, color: C.accent } }, "\u{1F4CA} \u91D1\u878D\u7248"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 9, color: C.textSec } }, "\u5269", Math.max(0, subExpiry - day), "\u5929")), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 16 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, fontWeight: 500, color: C.accent, marginBottom: 10 } }, "\u4ECA\u65E5 \xB7 Day ", day), displayToday.map((n, i) => /* @__PURE__ */ React.createElement(NewsCard, { key: "t-" + i, n, subscribed: isSubAct }))), displayHist.filter((n) => n.day < day).length > 0 && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: C.textSec, marginBottom: 10 } }, "\u5F80\u671F"), [...displayHist].filter((n) => n.day < day).reverse().slice(0, 30).map((n, i) => /* @__PURE__ */ React.createElement(NewsCard, { key: "h-" + i, n, subscribed: isSubAct, dim: true })))), showNext && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.3)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }, onClick: () => setShowNext(false) }, /* @__PURE__ */ React.createElement("div", { style: { background: C.card, borderRadius: 14, padding: "28px 24px", maxWidth: 300, width: "85%", textAlign: "center", boxShadow: "0 12px 40px rgba(0,0,0,0.15)" }, onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 32, marginBottom: 8 } }, "\u{1F305}"), /* @__PURE__ */ React.createElement("div", { style: { fontFamily: fontTitle, fontSize: 16, fontWeight: 600, marginBottom: 6 } }, "\u6536\u76D8"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: C.textSec, lineHeight: 1.7, marginBottom: 18 } }, "\u7ED3\u675F\u7B2C ", day, " \u4E2A\u4EA4\u6613\u65E5\uFF1F"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setShowNext(false), style: { flex: 1, padding: "10px 0", borderRadius: 8, border: "1px solid " + C.border, background: "transparent", color: C.textSec, fontSize: 12, fontFamily: font, cursor: "pointer" } }, "\u518D\u770B\u770B"), /* @__PURE__ */ React.createElement("button", { onClick: nextDay, style: { flex: 1, padding: "10px 0", borderRadius: 8, border: "none", background: C.accent, color: "#fff", fontSize: 12, fontFamily: font, fontWeight: 500, cursor: "pointer" } }, "\u5F00\u76D8 \u25B6")))), showSub && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.3)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }, onClick: () => setShowSub(false) }, /* @__PURE__ */ React.createElement("div", { style: { background: C.card, borderRadius: 14, padding: "28px 24px", maxWidth: 300, width: "85%", textAlign: "center" }, onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 28, marginBottom: 8 } }, "\u{1F4F0}"), /* @__PURE__ */ React.createElement("div", { style: { fontFamily: fontTitle, fontSize: 16, fontWeight: 600, marginBottom: 12 } }, "\u91D1\u878D\u7248 \xB7 \u20A5", SUB_COST, "/", SUB_DAYS, "\u5929"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setShowSub(false), style: { flex: 1, padding: "10px 0", borderRadius: 8, border: "1px solid " + C.border, background: "transparent", color: C.textSec, fontSize: 12, fontFamily: font, cursor: "pointer" } }, "\u7B97\u4E86"), /* @__PURE__ */ React.createElement("button", { onClick: handleSub, style: { flex: 1, padding: "10px 0", borderRadius: 8, border: "none", background: C.accent, color: "#fff", fontSize: 12, fontFamily: font, fontWeight: 500, cursor: "pointer" } }, "\u8BA2\u9605")))), futNotice && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }, onClick: () => setFutNotice(false) }, /* @__PURE__ */ React.createElement("div", { style: { background: "linear-gradient(135deg,#2a2520,#3d3530)", borderRadius: 14, padding: "32px 24px", maxWidth: 300, width: "85%", textAlign: "center" }, onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 36, marginBottom: 8 } }, "\u{1F513}"), /* @__PURE__ */ React.createElement("div", { style: { fontFamily: fontTitle, fontSize: 18, fontWeight: 700, color: "#e8d5b0", marginBottom: 8 } }, "\u671F\u8D27\u5DF2\u89E3\u9501"), /* @__PURE__ */ React.createElement("div", { style: { fontFamily: fontHand, fontSize: 16, color: "rgba(232,213,176,0.7)", marginBottom: 6 } }, "\u542C\u8BF4\u4F60\u662F\u5929\u624D\u4EA4\u6613\u5458\uFF1F"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "rgba(200,190,170,0.6)", lineHeight: 1.8, marginBottom: 4 } }, "\u6760\u6746 2x / 5x / 10x \xB7 \u505A\u591A\u505A\u7A7A \xB7 \u6CE8\u610F\u7206\u4ED3"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: C.futures, marginBottom: 16 } }, "150\u5929\u5185\u20A51M\u53EF\u89E3\u9501\u4E0B\u4E00\u9636\u6BB5"), /* @__PURE__ */ React.createElement("button", { onClick: () => setFutNotice(false), style: { padding: "10px 24px", borderRadius: 8, border: "1px solid rgba(232,213,176,0.3)", background: "transparent", color: "#e8d5b0", fontSize: 12, fontFamily: font, cursor: "pointer" } }, "\u8FDB\u5165\u671F\u8D27\u5E02\u573A"))), cryptoNotice && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }, onClick: () => setCryptoNotice(false) }, /* @__PURE__ */ React.createElement("div", { style: { background: "linear-gradient(135deg,#1a1a2e,#2d2248)", borderRadius: 14, padding: "32px 24px", maxWidth: 300, width: "85%", textAlign: "center" }, onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 36, marginBottom: 8 } }, "\u{1FA99}"), /* @__PURE__ */ React.createElement("div", { style: { fontFamily: fontTitle, fontSize: 18, fontWeight: 700, color: "#c4a548", marginBottom: 8 } }, "\u5E01\u5708\u5DF2\u89E3\u9501"), /* @__PURE__ */ React.createElement("div", { style: { fontFamily: fontHand, fontSize: 16, color: "rgba(196,165,72,0.7)", marginBottom: 16 } }, "\u6B22\u8FCE\u6765\u5230\u771F\u6B63\u7684\u75AF\u72C2"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "rgba(200,190,170,0.4)", marginBottom: 16 } }, "\u656C\u8BF7\u671F\u5F85\u4E0B\u6B21\u66F4\u65B0"), /* @__PURE__ */ React.createElement("button", { onClick: () => setCryptoNotice(false), style: { padding: "10px 24px", borderRadius: 8, border: "1px solid rgba(196,165,72,0.3)", background: "transparent", color: "#c4a548", fontSize: 12, fontFamily: font, cursor: "pointer" } }, "\u7EE7\u7EED\u4EA4\u6613"))), toast && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)", padding: "10px 20px", borderRadius: 8, fontSize: 12, fontFamily: font, background: toast.type === "err" ? C.downBg : toast.type === "up" ? C.up : toast.type === "down" ? C.down : C.card, color: toast.type === "err" ? C.down : toast.type === "up" || toast.type === "down" ? "#fff" : C.text, border: "1px solid " + (toast.type === "err" ? C.down : toast.type === "up" ? C.up : toast.type === "down" ? C.down : C.border), boxShadow: "0 4px 16px rgba(0,0,0,0.1)", whiteSpace: "nowrap", maxWidth: "90vw", zIndex: 200 } }, toast.msg), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "24px 16px 0", fontFamily: fontHand, fontSize: 13, color: "rgba(160,140,120,0.45)" } }, "Ex Nihilo, Crescimus \xB7 MYSE Est. 0608"), /* @__PURE__ */ React.createElement("style", null, `input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;}input[type=number]{-moz-appearance:textfield;}`));
+}
+ReactDOM.createRoot(document.getElementById("root")).render(/* @__PURE__ */ React.createElement(MYSE, null));
+</script>
+</body>
+</html>
